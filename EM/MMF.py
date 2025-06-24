@@ -56,19 +56,24 @@ def pulsewave_fourier_coefficients(a, w, period=360, n_terms=100):
     return coefficients
 
 class MMF:
-    def __init__(self, ss: StarOfSlots) -> None:
-        self.ss = ss
+    def __init__(self, ss: StarOfSlots, current: np.array, yq: int=0) -> None:
+        self._ss = ss
+        self._current = current
+        self._yq = yq
+        if yq == 0:
+            self._yq = ss.suggestYq
 
-    def harmonicComponents(self, current: np.array, yq: int=1, n_terms: int = 100) -> tuple[np.array, np.array]:
-        nPoles = self.ss.nPoles
-        nSlots = self.ss.nSlots
-        nPhases = self.ss.nPhases
+    def harmonicComponents(self, n_terms: int = 100) -> tuple[np.array, np.array]:
+        nSlots = self._ss.nSlots
+        nPhases = self._ss.nPhases
+        current = self._current
+        yq = self._yq
 
         slot_pitch = 360 / nSlots
         coil_pitch = slot_pitch * yq
         coefficients = np.zeros((nPhases,n_terms+1), dtype=np.complex128)
 
-        pattern = self.ss.pattern
+        pattern = self._ss.pattern
         for i, phase in enumerate(pattern):
             alpha = (-i * slot_pitch) % 360
             if phase > 0:
@@ -98,12 +103,12 @@ class MMF:
 
         return sum_coefficient, phase_type
 
-    def THDforBackEMF(self, polearc_ratio: float, n_terms: int, yq:int=1) -> Union[np.array, None]:
-        if self.ss.pattern is None:
+    def THDforBackEMF(self, polearc_ratio: float, n_terms: int) -> Union[np.array, None]:
+        if self._ss.pattern is None:
             return None
 
         # 단절계수 구하기
-        k_wp = self.ss.calculateShortPitchFactor(yq)
+        k_wp = self._ss.calculateShortPitchFactor(self._yq)
 
         # 계자 자극의 크기(radE)
         w = np.pi * polearc_ratio
@@ -113,9 +118,9 @@ class MMF:
         harmonics = np.arange(1, n_terms * 2, 2)
         coefficients = 1. / (np.pi * harmonics) * (np.cos(harmonics*(np.pi - w)/2) - np.cos(harmonics*(np.pi + w)/2))
 
-        thd_emf = np.zeros(self.ss.nPhases, dtype=float)
-        emf_1 = np.zeros(self.ss.nPhases, dtype=float)
-        pp = self.ss.nPolePairs
+        thd_emf = np.zeros(self._ss.nPhases, dtype=float)
+        emf_1 = np.zeros(self._ss.nPhases, dtype=float)
+        pp = self._ss.nPolePairs
         for n, n_harmonic in enumerate(harmonics):
             # 홀수 고조파에 대해서만 다룬다
             pp_harmonic = int(n_harmonic * pp)
@@ -123,7 +128,7 @@ class MMF:
             # 공극자속밀도가 구형파 분포를 가진다 가정하면,
             # 공극자속밀도의 고조파 크기는 차수에 반비례함
             # 이러한 공극자속밀도의 고조파가 실제 쇄교자속에 미치는 영향은 고조파의 크기 및 고조파 권선계수의 곱으로 표현가능함
-            k_wd = self.ss.calculateDistributeFactor(pp_harmonic)
+            k_wd = self._ss.calculateDistributeFactor(pp_harmonic)
             emf = k_wd * k_wp * coefficients[n]
             if n == 0:
                 emf_1 = emf
@@ -133,25 +138,24 @@ class MMF:
         thd = np.sqrt(thd_emf) / abs(emf_1)
         return thd
 
-    def vibrationModeBySubharmonics(self, current: np.array, yq: int,
-                                    check_mode: np.array=np.array([1,2,3,4]),
+    def vibrationModeBySubharmonics(self, check_mode: np.array=np.array([1,2,3,4]),
                                     threshold: float=0.1) -> tuple[np.array, bool]:
         """
         Check vibration mode by subharmonics.
 
         Parameters:
-            current (float): phase current for the 3-phase windings
-            yq: coil throw
             check_mode (np.ndarray[int]): vibration mode for checking
             threshold (float): threshold ratio for magnitude of vibration mode based on fundamental harmonic
 
         Returns:
             dict: {mode number of vibration: validation results of the mode}
         """
-        mmf_coefficients, type = self.harmonicComponents(current, yq)
+        current = self._current
+        yq = self._yq
+        mmf_coefficients, type = self.harmonicComponents()
         result = np.zeros(check_mode.shape, dtype=bool)
 
-        pp = self.ss.nPolePairs
+        pp = self._ss.nPolePairs
         m1 = mmf_coefficients[pp]
         normalized_coefficients = mmf_coefficients / m1
 
@@ -165,12 +169,14 @@ class MMF:
 
         return zip(check_mode, result)
 
-    def vibrationModeByHarmonics(self, current: np.array, yq: int, polearc_ratio: float,
+    def vibrationModeByHarmonics(self, polearc_ratio: float,
                                  with_mmf_harmonics: np.array, with_pole_harmonics: np.array,
                                  check_mode: np.array = np.array([1, 2, 3, 4]),
                                  threshold: float = 0.1) -> tuple[np.array, bool]:
-        pp = self.ss.nPolePairs
-        Q = self.ss.nSlots
+        current = self._current
+        yq = self._yq
+        pp = self._ss.nPolePairs
+        Q = self._ss.nSlots
 
         result = np.zeros(check_mode.shape, dtype=bool)
 
@@ -182,7 +188,7 @@ class MMF:
 
         # 기자력 FFT계수; with_mmf_harmonics 성분만 계산
         max_order = np.max(with_mmf_harmonics) * pp
-        mmf_coeffs, _ = self.harmonicComponents(current, yq, max_order)
+        mmf_coeffs, _ = self.harmonicComponents(max_order)
         mmf1 = mmf_coeffs[pp]
         normalized_coefficients = mmf_coeffs / mmf1
         mmf_coefficients = normalized_coefficients[with_mmf_harmonics*pp]
@@ -205,17 +211,17 @@ class MMF:
 
         return zip(check_mode, result)
 
-    def plotMMF(self, current, yq: int = 1) -> None:
-        nPoles = self.ss.nPoles
-        nSlots = self.ss.nSlots
-        nPhases = self.ss.nPhases
+    def plotMMF(self) -> None:
+        current = self._current
+        yq = self._yq
+        nSlots = self._ss.nSlots
 
         slot_pitch = 360 / nSlots
         coil_pitch = slot_pitch * yq
 
         # 파형 그리기 I - 직접 그리기
         t, summed_waveform = generate_pulse_waveform(360, 0, 0, 0)
-        pattern = self.ss.pattern
+        pattern = self._ss.pattern
         for i, phase in enumerate(pattern):
             i_ph = current[abs(phase) - 1]
             _, waveform = generate_pulse_waveform(360, coil_pitch, i*slot_pitch, i_ph)
@@ -225,7 +231,7 @@ class MMF:
                 summed_waveform -= waveform
 
         # 파형 그리기 II - 푸리에 계수를 활용한 신호 복원
-        coefficients, _ = self.harmonicComponents(current, yq)
+        coefficients, _ = self.harmonicComponents()
         omega0 = 2 * np.pi / 360  # 기본 주파수
         signal = np.zeros_like(t, dtype=np.complex128)
 
@@ -247,5 +253,51 @@ class MMF:
         plt.xlabel("Angle (degrees)")
         plt.ylabel("MMF")
         plt.legend()
+        plt.grid(True)
+        plt.show()
+
+    def plotHarmonics(self) -> None:
+        pp = self._ss.nPolePairs
+        Q = self._ss.nSlots
+        npp = Q / 3 / (2 * pp)
+        coeffs, type = self.harmonicComponents()
+        coefficients = coeffs / npp
+
+        # n 값 생성: 0부터 len(coefficients)-1까지
+        n_values = np.arange(len(coefficients))
+        magnitudes = 2 * np.abs(coefficients)  # 크기 계산
+        magnitudes[0] = np.abs(coefficients[0])
+
+        # 플롯팅
+        plt.figure(figsize=(10, 6))
+        for harmonic, harmonic_type in zip(n_values, type):
+            # 기본 플롯 생성
+            stem = plt.stem([harmonic], [magnitudes[harmonic]], markerfmt='ko', linefmt='k-', basefmt='k')
+
+            # `pp`의 배수인지 확인; 기본파와 고조파에 한해서는 마커 사이즈를 크게하여 표기함
+            if harmonic % pp == 0 and harmonic != 0:  # 0은 제외
+                stem[0].set_markersize(15)  # 마커 크기 설정
+                stem[1].set_linewidth(5)  # 스템선의 굵기를 2로 설정
+
+            # 고조파 타입의 확인; 고조파 타입은 마커 색상으로 표기함
+            if harmonic_type == 1:  # 공간적 위상이 같음--> 그레이
+                stem[0].set_color('gray')
+                stem[1].set_color('gray')
+
+            elif harmonic_type == 2:  # 공간적 위상이 120도 차이남 --> 파란색
+                stem[0].set_color('blue')
+                stem[1].set_color('blue')
+
+            elif harmonic_type == 3:  # 공간적 위상이 240도 차이남 --> 빨간색
+                stem[0].set_color('red')
+                stem[1].set_color('red')
+
+            else:  # 공간적 위상이 잘못됨 --> 검은색
+                stem[0].set_color('k')
+                stem[1].set_color('k')
+
+        plt.title("Magnitudes of Harmonic Components (n = 0 to positive harmonics)")
+        plt.xlabel("Harmonic Number (n)")
+        plt.ylabel("Magnitude (2|c_n|)")
         plt.grid(True)
         plt.show()
