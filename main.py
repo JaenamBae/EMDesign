@@ -72,10 +72,15 @@ def create_mapping(max_value):
 
 def main():
     # -----------------------------------
-    phases = 3  # 상수
-    pole_pair = 7  # 극쌍수
-    Q = 12  # 슬롯수
-    polearc_ratio = 0.95
+    phases = 3              # 상수
+    pole_pair = 7           # 극쌍수
+    Q = 12                  # 슬롯수
+    polearc_ratio = 0.95    # 극호율
+    beta = 30               # 전류위상각
+
+    print('-----------------------------------------------------')
+    print('Compute on Number of poles: {}, Number of Slots: {}'.format(pole_pair*2, Q))
+    print('-----------------------------------------------------')
 
     # -----------------------------------
     # Star of Slots 생성
@@ -114,15 +119,14 @@ def main():
     if k_wd is not None:
         k_w = k_wd * k_wp
         rounded_k_w = np.round(k_w, 6)
-        print('Kw for {}-pole-pair, {}-slots is {}'.format(pole_pair, Q, rounded_k_w))
+        print('Winding Coefficient Kw: {}'.format(rounded_k_w))
 
     # -----------------------------------
     # MMF 출력
-    beta = 30
-    current = np.array([np.cos(np.radians(beta)), np.cos(np.radians(beta-120)), np.cos(np.radians(beta-240))])
-    #current = np.array([1.0, -0.5, -0.5])
     mmf = MMF(ss)
     print('THD of the backEMF:', mmf.THDforBackEMF(polearc_ratio, 20, yq))
+
+    current = np.array([np.cos(np.radians(beta)), np.cos(np.radians(beta-120)), np.cos(np.radians(beta-240))])
     mmf.plotMMF(current, yq)
     mmf_coefficients, type = mmf.harmonicComponents(current, yq)
 
@@ -131,17 +135,19 @@ def main():
     plot_harmonic_magnitudes(mmf_coefficients/npp, type, pole_pair)
 
     # -------------------------------------
-    # Vibration mode check
-    modes = np.array([1,2,3,4])
+    # Vibration mode to check
+    modes = np.array([1,2,3,4]) # 검토할 진동모드
     mode_results_1 = mmf.vibrationModeBySubharmonics(current, yq, modes)
-    print('Vibration Mode Check by Sub-harmonics')
+    print('Checking Vibration Mode by Sub-harmonics')
     for mode, result in mode_results_1:
-        print(f"  Mode: {mode}, Result: {result}")
+        print(f"  Mode: {mode}: {result}")
 
-    mode_results_2 = mmf.vibrationModeByHarmonics(current, yq, polearc_ratio, np.array([1,5,7]), np.array([1,3,5]), modes)
-    print('Vibration Mode Check by Harmonics')
+    with_mmf_harmonics = np.array([1, 5, 7])    # 모드계산에 사용될 기자력의 공간 고조파 차수
+    with_pole_harmonics = np.array([1, 3, 5])   # 모드계산에 사용될 자극의 공간 고조파 차수
+    mode_results_2 = mmf.vibrationModeByHarmonics(current, yq, polearc_ratio, with_mmf_harmonics, with_pole_harmonics, modes)
+    print('Checking Vibration Mode by Harmonics')
     for mode, result in mode_results_2:
-        print(f"  Mode: {mode}, Result: {result}")
+        print(f"  Mode: {mode}: {result}")
 
 if __name__ == '__main__':
     main()
