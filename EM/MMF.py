@@ -205,7 +205,7 @@ class MMF:
 
         return zip(check_mode, result)
 
-    def plotMMF(self, current, yq: int = 1) -> None:
+    def plotMMF(self, current: np.array, yq: int = 1) -> None:
         nPoles = self.ss.nPoles
         nSlots = self.ss.nSlots
         nPhases = self.ss.nPhases
@@ -247,5 +247,51 @@ class MMF:
         plt.xlabel("Angle (degrees)")
         plt.ylabel("MMF")
         plt.legend()
+        plt.grid(True)
+        plt.show()
+
+    def plotHarmonics(self, current: np.array, yq: int = 1) -> None:
+        pp = self.ss.nPolePairs
+        Q = self.ss.nSlots
+        npp = Q / 3 / (2 * pp)
+        coeffs, type = self.harmonicComponents(current, yq)
+        coefficients = coeffs / npp
+
+        # n 값 생성: 0부터 len(coefficients)-1까지
+        n_values = np.arange(len(coefficients))
+        magnitudes = 2 * np.abs(coefficients)  # 크기 계산
+        magnitudes[0] = np.abs(coefficients[0])
+
+        # 플롯팅
+        plt.figure(figsize=(10, 6))
+        for harmonic, harmonic_type in zip(n_values, type):
+            # 기본 플롯 생성
+            stem = plt.stem([harmonic], [magnitudes[harmonic]], markerfmt='ko', linefmt='k-', basefmt='k')
+
+            # `pp`의 배수인지 확인; 기본파와 고조파에 한해서는 마커 사이즈를 크게하여 표기함
+            if harmonic % pp == 0 and harmonic != 0:  # 0은 제외
+                stem[0].set_markersize(15)  # 마커 크기 설정
+                stem[1].set_linewidth(5)  # 스템선의 굵기를 2로 설정
+
+            # 고조파 타입의 확인; 고조파 타입은 마커 색상으로 표기함
+            if harmonic_type == 1:  # 공간적 위상이 같음--> 그레이
+                stem[0].set_color('gray')
+                stem[1].set_color('gray')
+
+            elif harmonic_type == 2:  # 공간적 위상이 120도 차이남 --> 파란색
+                stem[0].set_color('blue')
+                stem[1].set_color('blue')
+
+            elif harmonic_type == 3:  # 공간적 위상이 240도 차이남 --> 빨간색
+                stem[0].set_color('red')
+                stem[1].set_color('red')
+
+            else:  # 공간적 위상이 잘못됨 --> 검은색
+                stem[0].set_color('k')
+                stem[1].set_color('k')
+
+        plt.title("Magnitudes of Harmonic Components (n = 0 to positive harmonics)")
+        plt.xlabel("Harmonic Number (n)")
+        plt.ylabel("Magnitude (2|c_n|)")
         plt.grid(True)
         plt.show()

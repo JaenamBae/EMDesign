@@ -1,74 +1,6 @@
 from EM import StarOfSlots
 from EM import MMF
 import numpy as np
-import matplotlib.pyplot as plt
-import string
-
-def plot_harmonic_magnitudes(coefficients, type, pp):
-    """
-    고조파별 푸리에 계수의 크기를 플롯팅합니다 (n = 0 포함, 양수 고조파만).
-
-    Parameters:
-        coefficients (np.ndarray): 푸리에 계수 c_n, n = 0부터 양의 정수까지 저장된 배열.
-        type (np.ndarray): 하모닉차수의 공간분포 타입; 0: Unknown, 1: Same phase, 2: 120, 3: 240
-        pp: 극쌍수
-    """
-    # n 값 생성: 0부터 len(coefficients)-1까지
-    n_values = np.arange(len(coefficients))
-    magnitudes = 2 * np.abs(coefficients)  # 크기 계산
-    magnitudes[0] = np.abs(coefficients[0])
-
-    # 플롯팅
-    plt.figure(figsize=(10, 6))
-    for harmonic, harmonic_type in zip(n_values, type):
-        # 기본 플롯 생성
-        stem = plt.stem([harmonic], [magnitudes[harmonic]], markerfmt='ko', linefmt='k-', basefmt='k')
-
-        # `pp`의 배수인지 확인; 기본파와 고조파에 한해서는 마커 사이즈를 크게하여 표기함
-        if harmonic % pp == 0 and harmonic != 0:  # 0은 제외
-            stem[0].set_markersize(15)  # 마커 크기 설정
-            stem[1].set_linewidth(5)    # 스템선의 굵기를 2로 설정
-
-        # 고조파 타입의 확인; 고조파 타입은 마커 색상으로 표기함
-        if harmonic_type == 1:  # 공간적 위상이 같음--> 그레이
-            stem[0].set_color('gray')
-            stem[1].set_color('gray')
-
-        elif harmonic_type == 2:  # 공간적 위상이 120도 차이남 --> 파란색
-            stem[0].set_color('blue')
-            stem[1].set_color('blue')
-
-        elif harmonic_type == 3:  # 공간적 위상이 240도 차이남 --> 빨간색
-            stem[0].set_color('red')
-            stem[1].set_color('red')
-
-        else:  # 공간적 위상이 잘못됨 --> 검은색
-            stem[0].set_color('k')
-            stem[1].set_color('k')
-
-
-    plt.title("Fourier Coefficients Magnitudes (n = 0 to positive harmonics)")
-    plt.xlabel("Harmonic Number (n)")
-    plt.ylabel("Magnitude (2|c_n|)")
-    plt.grid(True)
-    plt.show()
-
-def create_mapping(max_value):
-    letters = string.ascii_uppercase  # A-Z
-    mapping = {}
-    index = 1
-    while index <= max_value:
-        key = index
-        # 동적 알파벳 생성 (AA, AB, ... 확장 포함)
-        symbol = ""
-        temp = index
-        while temp > 0:
-            temp -= 1
-            symbol = letters[temp % 26] + symbol
-            temp //= 26
-        mapping[key] = symbol
-        index += 1
-    return mapping
 
 def main():
     # -----------------------------------
@@ -92,24 +24,13 @@ def main():
         return
 
     print('Suggested Coil Throw:', yq)
-    print('Zero Mutual:', ss.zeroMutual)
-    print('Validate Single Layer Winding:', ss.validateSingleLayerWinding)
+    print('Zero Mutual Inductance:', ss.zeroMutual)
+    print('Single Layer Winding:', ss.validateSingleLayerWinding)
 
     # -----------------------------------
     # 코일 패턴 출력
-    # 패턴 매핑 사전 생성
-    mapping = create_mapping(phases)
-
-    # 변환된 결과 리스트
-    winding_pattern = []
-
-    # 1->A 와 같은 변환 작업
-    for num in ss.pattern:
-        if num > 0:
-            winding_pattern.append(mapping[num])  # 양수는 그대로 매핑
-        else:
-            winding_pattern.append(f"-{mapping[abs(num)]}")  # 음수는 -를 붙임
-    print('Winding patterns: {}'.format(winding_pattern))
+    patterns = ss.getPatterns()
+    print('Winding patterns: {}'.format(patterns))
 
     # -----------------------------------
     # 권선계수 출력 - 서브하모닉 고려됨
@@ -127,24 +48,23 @@ def main():
     print('THD of the backEMF:', mmf.THDforBackEMF(polearc_ratio, 20, yq))
 
     current = np.array([np.cos(np.radians(beta)), np.cos(np.radians(beta-120)), np.cos(np.radians(beta-240))])
-    mmf.plotMMF(current, yq)
-    mmf_coefficients, type = mmf.harmonicComponents(current, yq)
+    # MMF 공간 파형 플롯팅:
+    #mmf.plotMMF(current, yq)
 
-    # 극당상당 슬롯수로 하모닉 크기를 표준화시킴
-    npp = Q / 3 / (2*pole_pair)
-    plot_harmonic_magnitudes(mmf_coefficients/npp, type, pole_pair)
+    # 고조파 크기 플롯팅: 극당상당 슬롯수로 하모닉 크기를 표준화시킴
+    #mmf.plotHarmonics(current, yq)
 
     # -------------------------------------
     # Vibration mode to check
-    modes = np.array([1,2,3,4]) # 검토할 진동모드
-    mode_results_1 = mmf.vibrationModeBySubharmonics(current, yq, modes)
+    check_modes = np.array([1,2,3,4,5]) # 검토할 진동모드
+    mode_results_1 = mmf.vibrationModeBySubharmonics(current, yq, check_modes)
     print('Checking Vibration Mode by Sub-harmonics')
     for mode, result in mode_results_1:
         print(f"  Mode: {mode}: {result}")
 
-    with_mmf_harmonics = np.array([1, 5, 7])    # 모드계산에 사용될 기자력의 공간 고조파 차수
-    with_pole_harmonics = np.array([1, 3, 5])   # 모드계산에 사용될 자극의 공간 고조파 차수
-    mode_results_2 = mmf.vibrationModeByHarmonics(current, yq, polearc_ratio, with_mmf_harmonics, with_pole_harmonics, modes)
+    with_mmf_harmonics = np.array([1, 5, 7, 11, 13])    # 모드계산에 사용될 기자력의 공간 고조파 차수
+    with_pole_harmonics = np.array([1, 3, 5, 7])   # 모드계산에 사용될 자극의 공간 고조파 차수
+    mode_results_2 = mmf.vibrationModeByHarmonics(current, yq, polearc_ratio, with_mmf_harmonics, with_pole_harmonics, check_modes)
     print('Checking Vibration Mode by Harmonics')
     for mode, result in mode_results_2:
         print(f"  Mode: {mode}: {result}")

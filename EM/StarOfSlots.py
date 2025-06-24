@@ -3,6 +3,24 @@ import math
 import cmath
 from typing import Union
 import numpy as np
+import string
+
+def create_mapping(max_value):
+    letters = string.ascii_uppercase  # A-Z
+    mapping = {}
+    index = 1
+    while index <= max_value:
+        key = index
+        # 동적 알파벳 생성 (AA, AB, ... 확장 포함)
+        symbol = ""
+        temp = index
+        while temp > 0:
+            temp -= 1
+            symbol = letters[temp % 26] + symbol
+            temp //= 26
+        mapping[key] = symbol
+        index += 1
+    return mapping
 
 class StarOfSlots:
     def __init__(self, pp: int, N_slots: int, N_phases: int = 3) -> None:
@@ -215,3 +233,25 @@ class StarOfSlots:
 
         thd = np.sqrt(thd_kw) / k_w1
         return thd
+
+    def getPatterns(self, yq: int=0):
+        if self._pattern is None:
+            return None
+
+        if yq == 0:
+            yq = self.nPolePairs
+
+        mapping = create_mapping(self._m)
+
+        # 변환된 결과 리스트
+        winding_pattern = {}
+
+        # 1->A 와 같은 변환 작업
+        for slotNo, phaseNo in enumerate(self.pattern):
+            if phaseNo > 0:
+                winding_pattern[slotNo + 1] = mapping[phaseNo]  # 양수는 그대로 매핑
+            else:
+                winding_pattern[slotNo + 1] = f"-{mapping[abs(phaseNo)]}"  # 음수는 -를 붙임
+
+
+        return winding_pattern
