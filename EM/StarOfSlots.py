@@ -286,7 +286,7 @@ class StarOfSlots:
         section_colors = base_colors + dark_colors
 
         for i in range(6):
-            start_angle = i * 60 - 1  # 시작 각도
+            start_angle = i * 60 - 29  # 시작 각도
             end_angle = start_angle + 60  # 끝 각도
             wedge = Wedge(
                 center=(0, 0), r=1.5, theta1=start_angle, theta2=end_angle,

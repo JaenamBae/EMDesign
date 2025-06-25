@@ -156,8 +156,8 @@ class MMF:
         result = np.zeros(check_mode.shape, dtype=bool)
 
         pp = self._ss.nPolePairs
-        m1 = mmf_coefficients[pp]
-        normalized_coefficients = mmf_coefficients / m1
+        m1 = np.abs(mmf_coefficients[pp])
+        normalized_coefficients = np.abs(mmf_coefficients) / m1
 
         for idx, mode in enumerate(check_mode):
             index = pp - mode

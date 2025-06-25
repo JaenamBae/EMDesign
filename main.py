@@ -6,7 +6,7 @@ import numpy as np
 def main():
     # -----------------------------------
     phases = 3              # 상수
-    pole_pair = 7           # 극쌍수
+    pole_pair = 4           # 극쌍수
     Q = 12                  # 슬롯수
     polearc_ratio = 0.95    # 극호율
     beta = 30               # 전류위상각
@@ -37,8 +37,6 @@ def main():
     # Star of Slots 출력
     ss.plotStarOfSlots()
 
-
-
     # -----------------------------------
     # 권선계수 출력 - 서브하모닉 고려됨
     # 기본파에 대한 권선계수는 주어진 pp에서 확인해야 함
@@ -52,7 +50,7 @@ def main():
     # -----------------------------------
     # MMF 출력
     current = np.array([np.cos(np.radians(beta)), np.cos(np.radians(beta - 120)), np.cos(np.radians(beta - 240))])
-    current = np.array([1, 0, 0])
+    #current = np.array([0, 0.00, 1.00])
     mmf = MMF(ss, current, yq)
     print('THD of the backEMF:', mmf.THDforBackEMF(polearc_ratio, 20))
 
@@ -78,13 +76,5 @@ def main():
         print(f"  Mode: {mode}: {result}")
 
 
-def plotFigure1():
-    ss = StarOfSlots(1,3)
-    #ss.setTemporaryPatterns(np.array([1, 0, 0]))
-
-    mmf = MMF(ss, np.array([1, -0.5, -0.5]), 1)
-    mmf.plotHarmonics()
-    mmf.plotMMF()
 if __name__ == '__main__':
     main()
-    #plotFigure1()
