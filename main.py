@@ -34,6 +34,12 @@ def main():
     print('Winding patterns: {}'.format(patterns))
 
     # -----------------------------------
+    # Star of Slots 출력
+    ss.plotStarOfSlots()
+
+
+
+    # -----------------------------------
     # 권선계수 출력 - 서브하모닉 고려됨
     # 기본파에 대한 권선계수는 주어진 pp에서 확인해야 함
     k_wd = ss.calculateDistributeFactor(pole_pair)
@@ -46,13 +52,14 @@ def main():
     # -----------------------------------
     # MMF 출력
     current = np.array([np.cos(np.radians(beta)), np.cos(np.radians(beta - 120)), np.cos(np.radians(beta - 240))])
+    current = np.array([1, 0, 0])
     mmf = MMF(ss, current, yq)
     print('THD of the backEMF:', mmf.THDforBackEMF(polearc_ratio, 20))
 
-    # MMF 공간 파형 플롯팅:
+    # 합성기자력 공간 파형 플롯팅:
     mmf.plotMMF()
 
-    # 고조파 크기 플롯팅: 극당상당 슬롯수로 하모닉 크기를 표준화시킴
+    # 합성기자력 고조파 크기 플롯팅: 극당상당 슬롯수로 하모닉 크기를 표준화시킴
     mmf.plotHarmonics()
 
     # -------------------------------------
@@ -70,5 +77,14 @@ def main():
     for mode, result in mode_results_2:
         print(f"  Mode: {mode}: {result}")
 
+
+def plotFigure1():
+    ss = StarOfSlots(1,3)
+    #ss.setTemporaryPatterns(np.array([1, 0, 0]))
+
+    mmf = MMF(ss, np.array([1, -0.5, -0.5]), 1)
+    mmf.plotHarmonics()
+    mmf.plotMMF()
 if __name__ == '__main__':
     main()
+    #plotFigure1()

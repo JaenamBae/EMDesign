@@ -104,7 +104,7 @@ class MMF:
         return sum_coefficient, phase_type
 
     def THDforBackEMF(self, polearc_ratio: float, n_terms: int) -> Union[np.array, None]:
-        if self._ss.pattern is None:
+        if not self._ss.feasible:
             return None
 
         # 단절계수 구하기
@@ -248,10 +248,13 @@ class MMF:
 
         # Plot
         plt.figure(figsize=(12, 6))
-        plt.plot(t, reconstructed_waveform, label="MMF Waveform (fourier reconstructed)", color="blue", linewidth=2)
+        plt.plot(t, reconstructed_waveform, label="MMF Waveform (fourier reconstructed)", color="blue", linewidth=3)
         plt.plot(t, summed_waveform, label="MMF Waveform", color="red", linewidth=2)
-        plt.xlabel("Angle (degrees)")
+        plt.xlabel("Mechanical Angle (degrees)")
         plt.ylabel("MMF")
+        plt.xlim([0, 360])
+        plt.xticks(np.arange(0, 360, 60))
+        plt.axhline(0, 0, 360, color='k', linestyle='-')
         plt.legend()
         plt.grid(True)
         plt.show()
