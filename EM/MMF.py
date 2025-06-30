@@ -147,13 +147,13 @@ class MMF:
 
         return sum_coefficient, phase_type
 
-    def harmonicsForBackEMF(self, coefficients_bg: np.array) -> Union[np.array, None]:
+    def harmonicsForBackEMF(self, Bg_FFT: np.array) -> Union[np.array, None]:
         if not self._ss.feasible:
             return None
 
-        emf_harmonic = np.zeros_like(coefficients_bg, dtype=np.complex128)
+        emf_harmonic = np.zeros_like(Bg_FFT, dtype=np.complex128)
         pp = self._ss.nPolePairs
-        for n, Bgn_FFT in enumerate(coefficients_bg):
+        for n, Bgn_FFT in enumerate(Bg_FFT):
             if n == 0: continue
 
             # 전기각 고려한 하모닉 차수
@@ -171,12 +171,12 @@ class MMF:
 
         return emf_harmonic
 
-    def THDforBackEMF(self, coefficients_bg: np.array) -> Union[float, None]:
+    def THDforBackEMF(self, Bg_FFT: np.array) -> Union[float, None]:
         if not self._ss.feasible:
             return None
 
         # 홀수 고조파에 대한 계수만 계산된다
-        harmonics_emf = self.harmonicsForBackEMF(coefficients_bg)
+        harmonics_emf = self.harmonicsForBackEMF(Bg_FFT)
         thd_emf = 0
         emf_1 = 0
         for n, emf in enumerate(harmonics_emf):
@@ -355,9 +355,9 @@ class MMF:
         plt.grid(True)
         plt.show()
 
-    def plotBackEMF(self, coefficients_bg: np.array):
+    def plotBackEMF(self, Bg_FFT: np.array):
         t = np.linspace(0, 360, 1000, endpoint=False)
-        coefficients = self.harmonicsForBackEMF(coefficients_bg) / 2
+        coefficients = self.harmonicsForBackEMF(Bg_FFT) / 2
         signal = np.zeros_like(t, dtype=np.complex128)
 
         omega0 = 2 * np.pi / 360  # 기본 주파수

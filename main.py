@@ -175,9 +175,9 @@ def main():
     # 해석모델로부터 공극자속밀도를 구함
     B_g_FFT3 = B_g_FFT_myMachine()
 
-    print('THD of the backEMF:', mmf.THDforBackEMF(B_g_FFT3))
+    print('THD of the backEMF:', mmf.THDforBackEMF(B_g_FFT1))
 
-    mmf.plotBackEMF(B_g_FFT3)
+    mmf.plotBackEMF(B_g_FFT1)
     return
 
     # -------------------------------------
