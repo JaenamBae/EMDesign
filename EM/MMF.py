@@ -55,6 +55,50 @@ def pulsewave_fourier_coefficients(a, w, period=360, n_terms=100):
 
     return coefficients
 
+def trapezoidal_fourier_coefficients(w, num_terms=10):
+    """
+    사다리꼴파형의 푸리에 계수 계산 (주기 2*pi).
+
+    Parameters:
+        w (float): 상단 평평한 너비 (단위: radians, w < pi)
+        num_terms (int): 계산할 푸리에 계수의 개수
+
+    Returns:
+        b_n (np.ndarray): 푸리에 계수 배열 (n = 1, 2, ..., num_terms)
+    """
+    b_n = np.zeros(num_terms)
+    slope1 = 1 / (np.pi / 2 - w / 2)  # 구간 1의 기울기
+    slope3 = -1 / (np.pi / 2 - w / 2)  # 구간 3의 기울기
+
+    harmonic_order = range(1, num_terms + 1)
+    for n in harmonic_order:
+        # 구간 1: 선형 증가
+        term1 = (1 / np.pi) * slope1 * (
+                (-np.cos(n * (np.pi / 2 - w / 2)) + np.cos(n * (w / 2 - np.pi / 2))) / n
+                + (np.sin(n * (np.pi / 2 - w / 2)) - np.sin(n * (w / 2 - np.pi / 2))) / n ** 2
+        )
+
+        # 구간 2: 상수
+        term2 = (1 / np.pi) * (
+                (-np.cos(n * (np.pi / 2 + w / 2)) + np.cos(n * (np.pi / 2 - w / 2))) / n / slope1
+        )
+
+        # 구간 3: 선형 감소
+        term3 = (1 / np.pi) * slope3 * (
+                (-np.cos(n * (3 * np.pi / 2 - w / 2)) + np.cos(n * (np.pi / 2 + w / 2))) / n
+                + (np.sin(n * (3 * np.pi / 2 - w / 2)) - np.sin(n * (np.pi / 2 + w / 2))) / n ** 2
+        )
+
+        # 구간 4: 상수
+        term4 = (1 / np.pi) * (
+                (np.cos(n * (3 * np.pi / 2 + w / 2)) - np.cos(n * (3 * np.pi / 2 - w / 2))) / n / slope3
+        )
+
+        # 합산
+        b_n[n - 1] = term1 + term2 + term3 + term4
+
+    return b_n, harmonic_order
+
 class MMF:
     def __init__(self, ss: StarOfSlots, current: np.array, yq: int=0) -> None:
         self._ss = ss
@@ -103,39 +147,45 @@ class MMF:
 
         return sum_coefficient, phase_type
 
-    def THDforBackEMF(self, polearc_ratio: float, n_terms: int) -> Union[np.array, None]:
+    def harmonicsForBackEMF(self, coefficients_bg: np.array) -> Union[np.array, None]:
         if not self._ss.feasible:
             return None
 
-        # 단절계수 구하기
-        k_wp = self._ss.calculateShortPitchFactor(self._yq)
-
-        # 계자 자극의 크기(radE)
-        w = np.pi * polearc_ratio
-
-        # 계자 공극 자속밀도 분포의 FFT 계수 (극호율의 함수로만 표현함)
-        # 홀수 차수만 고려한다
-        harmonics = np.arange(1, n_terms * 2, 2)
-        coefficients = 1. / (np.pi * harmonics) * (np.cos(harmonics*(np.pi - w)/2) - np.cos(harmonics*(np.pi + w)/2))
-
-        thd_emf = np.zeros(self._ss.nPhases, dtype=float)
-        emf_1 = np.zeros(self._ss.nPhases, dtype=float)
+        emf_harmonic = np.zeros_like(coefficients_bg, dtype=np.complex128)
         pp = self._ss.nPolePairs
-        for n, n_harmonic in enumerate(harmonics):
-            # 홀수 고조파에 대해서만 다룬다
-            pp_harmonic = int(n_harmonic * pp)
+        for n, Bgn_FFT in enumerate(coefficients_bg):
+            if n == 0: continue
 
-            # 공극자속밀도가 구형파 분포를 가진다 가정하면,
-            # 공극자속밀도의 고조파 크기는 차수에 반비례함
-            # 이러한 공극자속밀도의 고조파가 실제 쇄교자속에 미치는 영향은 고조파의 크기 및 고조파 권선계수의 곱으로 표현가능함
+            # 전기각 고려한 하모닉 차수
+            pp_harmonic = int(n * pp)
+
+            # 공극자속밀도의 고조파가 실제 쇄교자속에 미치는 영향은 고조파의 크기 및 고조파 권선계수의 곱으로 표현 가능함
+            # 분포계수 구하기
             k_wd = self._ss.calculateDistributeFactor(pp_harmonic)
-            emf = k_wd * k_wp * coefficients[n]
-            if n == 0:
+
+            # 단절계수 구하기
+            k_wp = self._ss.calculateShortPitchFactor(self._yq, pp_harmonic)
+
+            # 쇄교자속에 대한 고조파의 영향도
+            emf_harmonic[n] = k_wd[0] * k_wp * Bgn_FFT
+
+        return emf_harmonic
+
+    def THDforBackEMF(self, coefficients_bg: np.array) -> Union[float, None]:
+        if not self._ss.feasible:
+            return None
+
+        # 홀수 고조파에 대한 계수만 계산된다
+        harmonics_emf = self.harmonicsForBackEMF(coefficients_bg)
+        thd_emf = 0
+        emf_1 = 0
+        for n, emf in enumerate(harmonics_emf):
+            if n == 1:
                 emf_1 = emf
             else:
                 thd_emf += emf**2
 
-        thd = np.sqrt(thd_emf) / abs(emf_1)
+        thd = np.abs(np.sqrt(thd_emf) / emf_1)
         return thd
 
     def vibrationModeBySubharmonics(self, check_mode: np.array=np.array([1,2,3,4]),
@@ -302,5 +352,36 @@ class MMF:
         plt.title("Magnitudes of Harmonic Components (n = 0 to positive harmonics)")
         plt.xlabel("Harmonic Number (n)")
         plt.ylabel("Magnitude (2|c_n|)")
+        plt.grid(True)
+        plt.show()
+
+    def plotBackEMF(self, coefficients_bg: np.array):
+        t = np.linspace(0, 360, 1000, endpoint=False)
+        coefficients = self.harmonicsForBackEMF(coefficients_bg) / 2
+        signal = np.zeros_like(t, dtype=np.complex128)
+
+        omega0 = 2 * np.pi / 360  # 기본 주파수
+        i = 0
+        for n, cn in enumerate(coefficients):
+            kk = 1j * n * omega0
+            signal += (cn * np.exp(kk * t))
+
+            # DC성분을 제외하고 켤레복소수에 대한 복원 작업을 진행함
+            if n != 0:
+                cn_conj = np.conj(cn)
+                signal += (cn_conj * np.exp(-kk * t))
+
+        # Plot
+        plt.figure(figsize=(12, 6))
+        plt.plot(t, np.real(signal), color="blue", linewidth=3)
+        plt.xlabel("Electric Angle (degrees)")
+        plt.ylabel("back EMF [pu]")
+        plt.xlim([0, 360])
+        plt.xticks(np.arange(0, 360, 60))
+        plt.grid(True)
+        plt.show()
+
+        plt.figure(figsize=(10, 6))
+        stem = plt.stem(np.arange(coefficients.size), np.abs(coefficients), markerfmt='ko', linefmt='k-', basefmt='k')
         plt.grid(True)
         plt.show()

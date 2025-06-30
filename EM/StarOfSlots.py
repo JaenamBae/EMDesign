@@ -197,7 +197,7 @@ class StarOfSlots:
                 phase_count[-m-1] += 1
 
         # 분포계수를 구함
-        k_w = np.abs(phase) / phase_count
+        k_w = phase / phase_count
         return k_w
 
     def calculateShortPitchFactor(self, yq: int, pp: int = 0) -> Union[np.ndarray, None]:
@@ -210,36 +210,9 @@ class StarOfSlots:
             return None
 
         if pp == 0: pp = self._pp
-        coil_pitch = 2 * pp / self._Q * abs(yq)
-        k_wp = np.abs(np.sin(coil_pitch * np.pi / 2))
+        coil_pitch = np.radians(360/self._Q * pp * abs(yq))
+        k_wp = np.sin(coil_pitch / 2)
         return k_wp
-
-    def THDforWindingFactor(self, harmonics: int, yq:int=1) -> Union[np.ndarray, None]:
-        if not self.feasible:
-            return None
-
-        # 단절계수 구하기
-        k_wp = self.calculateShortPitchFactor(yq)
-
-        thd_kw = np.zeros(self._m, dtype=float)
-        k_w1 = np.zeros(self._m, dtype=float)
-        pp = self.nPolePairs
-        for n in range(harmonics):
-            # 홀수 고조파에 대해서만 다룬다
-            n_harmonics = 2*n + 1
-            pp_harmonic = int(n_harmonics * pp)
-
-            # 공극자속밀도가 구형파 분포를 가진다 가정하면,
-            # 공극자속밀도의 고조파 크기는 차수에 반비례함
-            # 이러한 공극자속밀도의 고조파가 실제 쇄교자속에 미치는 영향은 고조파의 크기 및 고조파 권선계수의 곱으로 표현가능함
-            k_w = self.calculateDistributeFactor(pp_harmonic) * k_wp / n_harmonics
-            if n == 0:
-                k_w1 = k_w
-            else:
-                thd_kw += k_w**2
-
-        thd = np.sqrt(thd_kw) / k_w1
-        return thd
 
     def getPatterns(self, yq: int=0):
         if not self.feasible:
