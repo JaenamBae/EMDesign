@@ -177,7 +177,6 @@ def main():
 
     print('THD of the backEMF:', mmf.THDforBackEMF(B_g_FFT1))
     mmf.plotBackEMF(B_g_FFT1, True, False)
-    return
 
     # -------------------------------------
     # Vibration mode to check
@@ -189,7 +188,7 @@ def main():
 
     with_mmf_harmonics = np.array([1, 5, 7, 11, 13])    # 모드계산에 사용될 기자력의 공간 고조파 차수
     with_pole_harmonics = np.array([1, 3, 5, 7])   # 모드계산에 사용될 자극의 공간 고조파 차수
-    mode_results_2 = mmf.vibrationModeByHarmonics(alpha_p, with_mmf_harmonics, with_pole_harmonics, check_modes)
+    mode_results_2 = mmf.vibrationModeByHarmonics(B_g_FFT1, with_mmf_harmonics, with_pole_harmonics, check_modes)
     print('Checking Vibration Mode by Harmonics')
     for mode, result in mode_results_2:
         print(f"  Mode: {mode}: {result}")

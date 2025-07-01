@@ -219,7 +219,7 @@ class MMF:
 
         return zip(check_mode, result)
 
-    def vibrationModeByHarmonics(self, polearc_ratio: float,
+    def vibrationModeByHarmonics(self, Bg_FFT: np.array,
                                  with_mmf_harmonics: np.array, with_pole_harmonics: np.array,
                                  check_mode: np.array = np.array([1, 2, 3, 4]),
                                  threshold: float = 0.1) -> tuple[np.array, bool]:
@@ -231,10 +231,7 @@ class MMF:
         result = np.zeros(check_mode.shape, dtype=bool)
 
         # 계자 공극 자속밀도 분포의 FFT 계수 (극호율의 함수로만 표현함); with_pole_harmonics 성분만 계산
-        w = np.pi * polearc_ratio
-        pole1 = 1. / np.pi * (np.cos((np.pi - w) / 2) - np.cos((np.pi + w) / 2))
-        pole_coefficients = 1. / (np.pi * with_pole_harmonics) * (np.cos(with_pole_harmonics * (np.pi - w) / 2) - np.cos(
-            with_pole_harmonics * (np.pi + w) / 2)) / pole1
+        pole_coefficients = Bg_FFT[with_pole_harmonics]
 
         # 기자력 FFT계수; with_mmf_harmonics 성분만 계산
         max_order = np.max(with_mmf_harmonics) * pp
