@@ -40,9 +40,12 @@ class StarOfSlots:
         self._t = math.gcd(pp, N_slots)
         mt = self._m * self._t
         self._feasible = self._Q % mt == 0
+        self._offset_angle = 0
 
         if (self._feasible):
             self._based_pattern, self._based_phasor = self.makeBasedPattern()
+
+            self._offset_angle = self.calculateOffsetAngle()
 
             # --------------------------------------
             # zero-Mutual Inductance 판별
@@ -106,7 +109,7 @@ class StarOfSlots:
     def suggestYq(self) -> int:
         return round(self._Q / (self._pp * 2) - 0.1)
 
-    def makeBasedPattern(self) -> Union[np.ndarray, None]:
+    def makeBasedPattern(self) -> Union[tuple[np.array, np.array], None]:
         if not self._feasible:
             return None
 
@@ -169,10 +172,30 @@ class StarOfSlots:
             print('Asymmetric Windings!')
             return None
         
-        # 슬롯수에 맞게 주기수 만큼 복제
+        # 한주기에 대한 패턴, 그리고 페이저 리턴
         return based_pattern, based_phasor
 
-    def calculateDistributeFactor(self, pp: int = 0) -> Union[np.ndarray, None]:
+    # A상이 d축에 위치하기 위한 회전자 위치각?
+    def calculateOffsetAngle(self):
+        # 고려할 슬롯 번호
+        qq = np.arange(1, self._Q + 1)
+        pattern = self.pattern
+
+        # 해당 극 기준 슬롯의 위상을 담을 변수
+        pp = self._pp
+        phasor = (360 / self._Q * (qq - 1) * pp) % 360
+
+        phase_a = np.zeros(1, dtype=complex)
+        for m, angle in zip(pattern, phasor):
+            if m == 1:
+                phase_a += cmath.rect(1, np.radians(angle))
+            elif m == -1:
+                phase_a += cmath.rect(1, np.radians(angle + 180))
+
+        offset_angle = np.angle(phase_a, deg=True)
+        return offset_angle
+
+    def calculateDistributeFactor(self, pp: int = 0) -> Union[np.array, None]:
         if not self.feasible:
             #print('Not allowed pole({})-slot({}) combination'.format(self.P, self.Q))
             return None
@@ -183,7 +206,7 @@ class StarOfSlots:
 
         # 해당 극 기준 슬롯의 위상을 담을 변수
         if pp == 0: pp = self._pp
-        phasor = (360 / self._Q * (qq - 1) * pp) % 360
+        phasor = ((360 / self._Q * (qq - 1) - self._offset_angle) * pp) % 360
 
         # 상권선별 분포계수 구하기 (밑작업)
         phase = np.zeros(self._m, dtype=complex)
@@ -198,9 +221,11 @@ class StarOfSlots:
 
         # 분포계수를 구함
         k_w = phase / phase_count
+        angle = np.angle(k_w, deg=True)
+        #print('K_w{} angle:{}'.format(pp, angle))
         return k_w
 
-    def calculateShortPitchFactor(self, yq: int, pp: int = 0) -> Union[np.ndarray, None]:
+    def calculateShortPitchFactor(self, yq: int, pp: int = 0) -> Union[np.array, None]:
         if not self.feasible:
             #print('Not allowed pole({})-slot({}) combination'.format(self.P, self.Q))
             return None
@@ -210,11 +235,11 @@ class StarOfSlots:
             return None
 
         if pp == 0: pp = self._pp
-        coil_pitch = np.radians(360/self._Q * pp * abs(yq))
+        coil_pitch = np.radians((360/self._Q * pp * abs(yq)) )
         k_wp = np.sin(coil_pitch / 2)
         return k_wp
 
-    def getPatterns(self, yq: int=0):
+    def getPatterns(self, yq: int = 0):
         if not self.feasible:
             return None
 

@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.ma.core import arange
 
 mu_0   = 4*np.pi*1e-7
 
@@ -19,6 +20,13 @@ class SPMSM:
         mu_r2 = self._info["mu_r2"]
         mu_r3 = self._info["mu_r3"]
         mu_r4 = self._info["mu_r4"]
+
+        # 수치계산 오버플로우 방지를 위해 반경을 모두 R_i 기준으로 표준화시킴
+        R_i = R_i / R_r
+        R_m = R_m / R_r
+        R_s = R_s / R_r
+        R_so = R_so / R_r
+        R_r = R_r / R_r
 
         # -------------------------------
         # 자속축이 x축에 정렬된 상태를 가정

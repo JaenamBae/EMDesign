@@ -355,7 +355,7 @@ class MMF:
         plt.grid(True)
         plt.show()
 
-    def plotBackEMF(self, Bg_FFT: np.array):
+    def plotBackEMF(self, Bg_FFT: np.array, with_waveform=True, with_fft=True) -> None:
         t = np.linspace(0, 360, 1000, endpoint=False)
         coefficients = self.harmonicsForBackEMF(Bg_FFT) / 2
         signal = np.zeros_like(t, dtype=np.complex128)
@@ -372,16 +372,32 @@ class MMF:
                 signal += (cn_conj * np.exp(-kk * t))
 
         # Plot
-        plt.figure(figsize=(12, 6))
-        plt.plot(t, np.real(signal), color="blue", linewidth=3)
-        plt.xlabel("Electric Angle (degrees)")
-        plt.ylabel("back EMF [pu]")
-        plt.xlim([0, 360])
-        plt.xticks(np.arange(0, 360, 60))
-        plt.grid(True)
-        plt.show()
+        if with_waveform:
+            plt.figure(figsize=(12, 6))
+            plt.plot(t, np.real(signal), color="blue", linewidth=3)
+            plt.title("back-EMF Waveform")
+            plt.xlabel("Electric Angle (degrees)")
+            plt.ylabel("back EMF [pu]")
+            plt.xlim([0, 360])
+            plt.xticks(np.arange(0, 360, 60))
+            plt.grid(True)
+            plt.show()
 
-        plt.figure(figsize=(10, 6))
-        stem = plt.stem(np.arange(coefficients.size), np.abs(coefficients), markerfmt='ko', linefmt='k-', basefmt='k')
-        plt.grid(True)
-        plt.show()
+
+        if with_fft:
+            # 하모닉 차수 생성 (0부터 시작)
+            harmonic_order = np.arange(len(coefficients))
+
+            # 크기 계산 (복소수인 경우 절댓값 사용)
+            magnitudes = np.abs(coefficients / coefficients[1])
+
+            # 그래프 그리기
+            plt.figure(figsize=(8, 5))
+            plt.stem(harmonic_order, magnitudes, basefmt=" ")
+            plt.title("back-EMF Harmonics")
+            plt.xlabel("Harmonic Order")
+            plt.ylabel("Magnitude [pu]")
+            plt.grid(True)
+            plt.xticks(harmonic_order)  # x축 눈금을 하모닉 차수에 맞게 설정
+
+            plt.show()

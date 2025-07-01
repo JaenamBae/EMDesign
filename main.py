@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 def B_g_FFT_myMachine():
-    p = 4
+    p = 7
 
     # 형상 치수
     R_i = 10.00 * 1e-3
@@ -42,7 +42,7 @@ def B_g_FFT_myMachine():
     # -----------------------------------
     # 공극자속밀도 파형 계산
     spmsm = SPMSM(info=info)
-    theta, B_r, B_t = spmsm.airgap_fluxdensity(10, 1024)
+    theta, B_r, B_t = spmsm.airgap_fluxdensity(10, 1024) # 홀수고조파 10개,
 
     # FFT 계산
     N = len(B_r)  # 데이터 길이
@@ -176,8 +176,7 @@ def main():
     B_g_FFT3 = B_g_FFT_myMachine()
 
     print('THD of the backEMF:', mmf.THDforBackEMF(B_g_FFT1))
-
-    mmf.plotBackEMF(B_g_FFT1)
+    mmf.plotBackEMF(B_g_FFT1, True, False)
     return
 
     # -------------------------------------
