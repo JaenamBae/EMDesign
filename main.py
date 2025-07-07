@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def B_g_FFT_myMachine():
+def B_g_FFT_myMachine(n_harmonics:int = 20):
     p = 7
 
     # 형상 치수
@@ -13,12 +13,15 @@ def B_g_FFT_myMachine():
     R_r = 12.05 * 1e-3
     R_m = 13.05 * 1e-3   # 영구자석 외경
     R_s = 13.55 * 1e-3   # 고정자 보어 내경
-    R_so = 14.0 * 1e-3
-    alpha_p = 0.9
+    R_so = 15.0 * 1e-3
+    alpha_p = 1.0
+
+    g = R_s - R_m
+    r = R_s - g*0.05
 
     # -------------------------------
     # 재질 사양
-    B_r = 1.12
+    B_r = 1.2
     mu_r1 = 3000
     mu_r2 = 1.05
     mu_r3 = 1
@@ -42,16 +45,14 @@ def B_g_FFT_myMachine():
     # -----------------------------------
     # 공극자속밀도 파형 계산
     spmsm = SPMSM(info=info)
-    theta, B_r, B_t = spmsm.airgap_fluxdensity(10, 1024) # 홀수고조파 10개,
+    spmsm.plotBg(n_harmonics)
+    Bg_FFT = np.zeros(n_harmonics)
+    for n in range(n_harmonics):
+        B_rn, B_tn = spmsm.calculate_harmonic(r, n)
+        Bg_FFT[n] = B_rn
 
-    # FFT 계산
-    N = len(B_r)  # 데이터 길이
-    fft_result = np.fft.fft(B_r)  # FFT 계산
-    fft_magnitude = np.abs(fft_result) / N  # FFT 크기 정규화
-    one_side_magnitude = fft_magnitude[:N // 2] * 2  # One-sided 스펙트럼
-    filtered_magnitudes = one_side_magnitude[(np.arange(len(one_side_magnitude)) % p == 0)]
-
-    return filtered_magnitudes
+    print(Bg_FFT)
+    return Bg_FFT
 
 def main():
     # -------------------------------
@@ -103,80 +104,45 @@ def main():
     mmf = MMF(ss, current, yq)
 
     # 합성기자력 공간 파형 플롯팅:
-    mmf.plotMMF()
+    #mmf.plotMMF()
 
     # 합성기자력 고조파 크기 플롯팅: 극당상당 슬롯수로 하모닉 크기를 표준화시킴
-    mmf.plotHarmonics()
+    #mmf.plotHarmonics()
 
     # -----------------------------------
     # EMF 출력
     # alpha = 0.7 from FEA
     B_g_FFT1 = np.array(
-        [0.0,
-         0.711071209,
-         0.0,
-         0.032913966,
-         0.0,
-         0.066593151,
-         0.0,
-         0.045979726,
-         0.0,
-         0.015706418,
-         0.0,
-         0.01222255,
-         0.0,
-         0.005297453,
-         0.0,
-         0.007201919,
-         0.0,
-         0.001709152,
-         0.0,
-         0.002668821
-         ]
-    )
-
-    # alpha = 1 from FEA
-    B_g_FFT2 = np.array(
         [0,
-         0.761751336,
-         0,
-         0.201739701,
-         0,
-         0.09244109,
-         0,
-         0.044334382,
-         0,
-         0.028503203,
-         0,
-         0.02263106,
-         0,
-         0.010959666,
-         0,
-         0.006547525,
-         0,
-         0.007012817,
-         0,
-         0.005146179,
-         0,
-         0.00585453,
-         0,
-         0.005939372,
-         0,
-         0.004157365,
-         0,
-         0.002026747,
-         0,
-         0.000471535,
-         0,
-         0.001452851
+         0.941801512,
+         0.00E+00,
+         -0.215816784,
+         0.00E+00,
+         0.077892667,
+         0.00E+00,
+         -0.032732218,
+         0.00E+00,
+         0.01495327,
+         0.00E+00,
+         -0.007192753,
+         0.00E+00,
+         0.003582226,
+         0.00E+00,
+         -0.001830871,
+         0.00E+00,
+         0.000953092,
+         0.00E+00,
+         -0.000504592
          ]
     )
 
     # 해석모델로부터 공극자속밀도를 구함
-    B_g_FFT3 = B_g_FFT_myMachine()
+    B_g_FFT3 = B_g_FFT_myMachine(40)
 
-    print('THD of the backEMF:', mmf.THDforBackEMF(B_g_FFT1))
-    mmf.plotBackEMF(B_g_FFT1, True, False)
+    B_g_FFT = B_g_FFT1
+
+    print('THD of the backEMF:', mmf.THDforBackEMF(B_g_FFT))
+    mmf.plotBackEMF(B_g_FFT, True, True)
 
     # -------------------------------------
     # Vibration mode to check
@@ -188,7 +154,7 @@ def main():
 
     with_mmf_harmonics = np.array([1, 5, 7, 11, 13])    # 모드계산에 사용될 기자력의 공간 고조파 차수
     with_pole_harmonics = np.array([1, 3, 5, 7])   # 모드계산에 사용될 자극의 공간 고조파 차수
-    mode_results_2 = mmf.vibrationModeByHarmonics(B_g_FFT1, with_mmf_harmonics, with_pole_harmonics, check_modes)
+    mode_results_2 = mmf.vibrationModeByHarmonics(B_g_FFT, with_mmf_harmonics, with_pole_harmonics, check_modes)
     print('Checking Vibration Mode by Harmonics')
     for mode, result in mode_results_2:
         print(f"  Mode: {mode}: {result}")

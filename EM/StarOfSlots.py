@@ -220,10 +220,10 @@ class StarOfSlots:
                 phase_count[-m-1] += 1
 
         # 분포계수를 구함
-        k_w = phase / phase_count
+        k_w = np.abs(phase) / phase_count
         angle = np.angle(k_w, deg=True)
         #print('K_w{} angle:{}'.format(pp, angle))
-        return k_w
+        return k_w[0]
 
     def calculateShortPitchFactor(self, yq: int, pp: int = 0) -> Union[np.array, None]:
         if not self.feasible:
@@ -235,16 +235,25 @@ class StarOfSlots:
             return None
 
         if pp == 0: pp = self._pp
-        coil_pitch = np.radians((360/self._Q * pp * abs(yq)) )
+        coil_pitch = np.radians((360/self._Q * pp * abs(yq)) % 360)
         k_wp = np.sin(coil_pitch / 2)
         return k_wp
 
-    def getPatterns(self, yq: int = 0):
+    def calculateCouplingFactor(self, pp: int = 0):
         if not self.feasible:
             return None
+        if pp == 0: pp = self._pp
 
-        if yq == 0:
-            yq = self.nPolePairs
+        n_harmonic = pp / self._pp
+        n_useless = int(pp / self._Q)
+        if n_useless > 0: n_useless = n_useless - 0.5
+        k_wc = (n_harmonic - n_useless) / pp * self._pp
+        return k_wc
+
+
+    def getPatterns(self):
+        if not self.feasible:
+            return None
 
         mapping = create_mapping(self._m)
 

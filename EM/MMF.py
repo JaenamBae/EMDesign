@@ -151,7 +151,7 @@ class MMF:
         if not self._ss.feasible:
             return None
 
-        emf_harmonic = np.zeros_like(Bg_FFT, dtype=np.complex128)
+        emf_harmonic = np.zeros_like(Bg_FFT)
         pp = self._ss.nPolePairs
         for n, Bgn_FFT in enumerate(Bg_FFT):
             if n == 0: continue
@@ -166,8 +166,11 @@ class MMF:
             # 단절계수 구하기
             k_wp = self._ss.calculateShortPitchFactor(self._yq, pp_harmonic)
 
+            # 결합계수 구하기
+            k_wc = self._ss.calculateCouplingFactor(pp_harmonic)
+
             # 쇄교자속에 대한 고조파의 영향도
-            emf_harmonic[n] = k_wd[0] * k_wp * Bgn_FFT
+            emf_harmonic[n] = k_wd * k_wp * k_wc * Bgn_FFT
 
         return emf_harmonic
 
@@ -353,6 +356,16 @@ class MMF:
         plt.show()
 
     def plotBackEMF(self, Bg_FFT: np.array, with_waveform=True, with_fft=True) -> None:
+        nSample = 3600  # 샘플링 데이터 수
+        theta = 360 * np.arange(nSample) / nSample
+        emf = np.zeros(nSample)
+
+        coefficients = self.harmonicsForBackEMF(Bg_FFT)
+        for n, cn in enumerate(coefficients):
+            emf_n = cn * np.cos(np.radians(n * theta))
+            emf = emf + emf_n
+
+        '''
         t = np.linspace(0, 360, 1000, endpoint=False)
         coefficients = self.harmonicsForBackEMF(Bg_FFT) / 2
         signal = np.zeros_like(t, dtype=np.complex128)
@@ -367,11 +380,11 @@ class MMF:
             if n != 0:
                 cn_conj = np.conj(cn)
                 signal += (cn_conj * np.exp(-kk * t))
-
+        '''
         # Plot
         if with_waveform:
             plt.figure(figsize=(12, 6))
-            plt.plot(t, np.real(signal), color="blue", linewidth=3)
+            plt.plot(theta, emf, color="blue", linewidth=3)
             plt.title("back-EMF Waveform")
             plt.xlabel("Electric Angle (degrees)")
             plt.ylabel("back EMF [pu]")
@@ -386,15 +399,26 @@ class MMF:
             harmonic_order = np.arange(len(coefficients))
 
             # 크기 계산 (복소수인 경우 절댓값 사용)
-            magnitudes = np.abs(coefficients / coefficients[1])
+            magnitudes = coefficients / coefficients[1]
+            #print(magnitudes)
 
             # 그래프 그리기
+            odd_mask = (harmonic_order % 2 == 1) & (harmonic_order <= 22)
+            odd_orders = harmonic_order[odd_mask]
+            odd_magnitudes = magnitudes[odd_mask]
+
             plt.figure(figsize=(8, 5))
-            plt.stem(harmonic_order, magnitudes, basefmt=" ")
+            plt.stem(odd_orders, odd_magnitudes, basefmt="k-")
+
+            # 막대 위에 퍼센트 값 표시 (소수점 둘째 자리까지)
+            for x, y in zip(odd_orders, odd_magnitudes):
+                percent = y * 100
+                plt.text(x, y + 0.02, f"{percent:.2f}%", ha='center', va='bottom', fontsize=9)
+
             plt.title("back-EMF Harmonics")
             plt.xlabel("Harmonic Order")
             plt.ylabel("Magnitude [pu]")
             plt.grid(True)
-            plt.xticks(harmonic_order)  # x축 눈금을 하모닉 차수에 맞게 설정
+            plt.xticks(odd_orders)  # ex) [1, 3, 5, 7, ...]
 
             plt.show()
