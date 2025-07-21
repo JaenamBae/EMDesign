@@ -172,6 +172,8 @@ class MMF:
             # 쇄교자속에 대한 고조파의 영향도
             emf_harmonic[n] = k_wd * k_wp * k_wc * Bgn_FFT
 
+            print('Winding factor for harmonic {}: K_wd: {}, K_wp: {}'.format(n, k_wd, k_wp))
+
         return emf_harmonic
 
     def THDforBackEMF(self, Bg_FFT: np.array) -> Union[float, None]:
@@ -355,32 +357,26 @@ class MMF:
         plt.grid(True)
         plt.show()
 
-    def plotBackEMF(self, Bg_FFT: np.array, with_waveform=True, with_fft=True) -> None:
-        nSample = 3600  # 샘플링 데이터 수
-        theta = 360 * np.arange(nSample) / nSample
-        emf = np.zeros(nSample)
+    def plotBackEMF(self, Bg_FFT: np.array, even:bool, with_waveform=True, with_fft=True) -> None:
+        # even 함수(cos 기반 함수)로 복원할 것임
+        n_sample = 3600  # 샘플링 데이터 수
+        theta = 360 * np.arange(n_sample) / n_sample
+        emf = np.zeros(n_sample)
 
         coefficients = self.harmonicsForBackEMF(Bg_FFT)
-        for n, cn in enumerate(coefficients):
+        new_coefficients = np.zeros_like(coefficients)
+        if even:  # 계수가 an인 경우 (코싸인 파형에 대한 계수인 경우)
+            new_coefficients = coefficients
+        else:   # 계수가 bn인 경우 (싸인 파형에 대한 계수인 경우)
+            for n in range(1, len(coefficients)):
+                sign = (-1) ** ((n - 1) // 2)
+                new_coefficients[n] = coefficients[n] * sign
+
+        for n, cn in enumerate(new_coefficients):
+            # even (코싸인) 파형으로 복원함
             emf_n = cn * np.cos(np.radians(n * theta))
             emf = emf + emf_n
 
-        '''
-        t = np.linspace(0, 360, 1000, endpoint=False)
-        coefficients = self.harmonicsForBackEMF(Bg_FFT) / 2
-        signal = np.zeros_like(t, dtype=np.complex128)
-
-        omega0 = 2 * np.pi / 360  # 기본 주파수
-        i = 0
-        for n, cn in enumerate(coefficients):
-            kk = 1j * n * omega0
-            signal += (cn * np.exp(kk * t))
-
-            # DC성분을 제외하고 켤레복소수에 대한 복원 작업을 진행함
-            if n != 0:
-                cn_conj = np.conj(cn)
-                signal += (cn_conj * np.exp(-kk * t))
-        '''
         # Plot
         if with_waveform:
             plt.figure(figsize=(12, 6))
@@ -396,10 +392,10 @@ class MMF:
 
         if with_fft:
             # 하모닉 차수 생성 (0부터 시작)
-            harmonic_order = np.arange(len(coefficients))
+            harmonic_order = np.arange(len(new_coefficients))
 
             # 크기 계산 (복소수인 경우 절댓값 사용)
-            magnitudes = coefficients / coefficients[1]
+            magnitudes = new_coefficients / new_coefficients[1]
             #print(magnitudes)
 
             # 그래프 그리기

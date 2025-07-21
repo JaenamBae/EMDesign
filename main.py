@@ -104,45 +104,45 @@ def main():
     mmf = MMF(ss, current, yq)
 
     # 합성기자력 공간 파형 플롯팅:
-    #mmf.plotMMF()
+    mmf.plotMMF()
 
     # 합성기자력 고조파 크기 플롯팅: 극당상당 슬롯수로 하모닉 크기를 표준화시킴
-    #mmf.plotHarmonics()
+    mmf.plotHarmonics()
 
     # -----------------------------------
     # EMF 출력
-    # alpha = 0.7 from FEA
+    # alpha = 0.7 from FEA. (bn, odd 파형(sin파형)에 대한 계수임)
     B_g_FFT1 = np.array(
         [0,
          0.941801512,
          0.00E+00,
-         -0.215816784,
+         0.215816784,
          0.00E+00,
          0.077892667,
          0.00E+00,
-         -0.032732218,
+         0.032732218,
          0.00E+00,
          0.01495327,
          0.00E+00,
-         -0.007192753,
+         0.007192753,
          0.00E+00,
          0.003582226,
          0.00E+00,
-         -0.001830871,
+         0.001830871,
          0.00E+00,
          0.000953092,
          0.00E+00,
-         -0.000504592
+         0.000504592
          ]
     )
 
-    # 해석모델로부터 공극자속밀도를 구함
+    # 해석모델로부터 공극자속밀도를 구함, (an, even 파형(cos파형)에 대한 계수임)
     B_g_FFT3 = B_g_FFT_myMachine(40)
 
-    B_g_FFT = B_g_FFT1
+    B_g_FFT = B_g_FFT3
 
     print('THD of the backEMF:', mmf.THDforBackEMF(B_g_FFT))
-    mmf.plotBackEMF(B_g_FFT, True, True)
+    mmf.plotBackEMF(B_g_FFT, False,True, True)
 
     # -------------------------------------
     # Vibration mode to check

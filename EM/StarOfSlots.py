@@ -35,7 +35,9 @@ class StarOfSlots:
         self._based_pattern = None
         self._based_phasor = None
         self._zero_mutual = False
-        self._signle_layer = False
+        self._single_layer = False
+        self._k_wd1 = None
+
 
         self._t = math.gcd(pp, N_slots)
         mt = self._m * self._t
@@ -63,7 +65,11 @@ class StarOfSlots:
             # Single Layer Winding 판별
             # 1. 코일피치가 1이 되어야 하고, 코일수가 짝수이어야 함
             suggested_yq = self.suggestYq
-            self._signle_layer = (suggested_yq <= 1) and (self._Q % 2 == 0)
+            self._single_layer = (suggested_yq <= 1) and (self._Q % 2 == 0)
+
+            # --------------------------------------
+            # 기본파 분포계수 구해두기
+            self._k_wd1 = self.calculateDistributeFactor()
 
     @property
     def nPolePairs(self) -> int:
@@ -103,7 +109,7 @@ class StarOfSlots:
 
     @property
     def validateSingleLayerWinding(self) -> bool:
-        return self._signle_layer
+        return self._single_layer
 
     @property
     def suggestYq(self) -> int:
@@ -175,7 +181,7 @@ class StarOfSlots:
         # 한주기에 대한 패턴, 그리고 페이저 리턴
         return based_pattern, based_phasor
 
-    # A상이 d축에 위치하기 위한 회전자 위치각?
+    # A상이 d축에 위치하기 위한 회전자 위치각
     def calculateOffsetAngle(self):
         # 고려할 슬롯 번호
         qq = np.arange(1, self._Q + 1)
@@ -193,7 +199,7 @@ class StarOfSlots:
                 phase_a += cmath.rect(1, np.radians(angle + 180))
 
         offset_angle = np.angle(phase_a, deg=True)
-        return offset_angle
+        return offset_angle / pp
 
     def calculateDistributeFactor(self, pp: int = 0) -> Union[np.array, None]:
         if not self.feasible:
@@ -220,10 +226,13 @@ class StarOfSlots:
                 phase_count[-m-1] += 1
 
         # 분포계수를 구함
-        k_w = np.abs(phase) / phase_count
-        angle = np.angle(k_w, deg=True)
-        #print('K_w{} angle:{}'.format(pp, angle))
-        return k_w[0]
+        k_w = phase / phase_count
+        angle = np.angle(k_w[0], deg=True)
+        print('Angle for Distribute Factor K_wd{}: {}'.format(int(pp/self._pp), angle))
+        if np.isclose(0, angle, rtol=1e-5, atol=1e-8):
+            return np.abs(k_w[0])
+        else:
+            return -np.abs(k_w[0])
 
     def calculateShortPitchFactor(self, yq: int, pp: int = 0) -> Union[np.array, None]:
         if not self.feasible:
@@ -235,7 +244,7 @@ class StarOfSlots:
             return None
 
         if pp == 0: pp = self._pp
-        coil_pitch = np.radians((360/self._Q * pp * abs(yq)) % 360)
+        coil_pitch = np.radians((360/self._Q * pp * abs(yq)))
         k_wp = np.sin(coil_pitch / 2)
         return k_wp
 
