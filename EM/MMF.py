@@ -172,7 +172,7 @@ class MMF:
             # 쇄교자속에 대한 고조파의 영향도
             emf_harmonic[n] = k_wd * k_wp * k_wc * Bgn_FFT
 
-            print('Winding factor for harmonic {}: K_wd: {}, K_wp: {}'.format(n, k_wd, k_wp))
+            #print('Winding factor for harmonic {}: K_wd: {}, K_wp: {}'.format(n, k_wd, k_wp))
 
         return emf_harmonic
 
@@ -373,8 +373,10 @@ class MMF:
                 new_coefficients[n] = coefficients[n] * sign
 
         for n, cn in enumerate(new_coefficients):
-            # even (코싸인) 파형으로 복원함
-            emf_n = cn * np.cos(np.radians(n * theta))
+            # odd (싸인) 파형으로 복원함;
+            # --> 권선계수는 even 쇄교자속 관점에서 보았고, 역기전력은 이의 미분파형이므로
+            # --> odd 파형으로 복원이 되어야 함
+            emf_n = cn * np.sin(np.radians(n * theta))
             emf = emf + emf_n
 
         # Plot
