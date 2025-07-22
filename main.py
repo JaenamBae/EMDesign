@@ -138,11 +138,12 @@ def main():
 
     # 해석모델로부터 공극자속밀도를 구함, (an, even 파형(cos파형)에 대한 계수임)
     B_g_FFT3 = B_g_FFT_myMachine(40)
+    #print(B_g_FFT3)
 
     B_g_FFT = B_g_FFT3
 
     print('THD of the backEMF:', mmf.THDforBackEMF(B_g_FFT))
-    mmf.plotBackEMF(B_g_FFT, False,True, True)
+    mmf.plotBackEMF(B_g_FFT, True,True, True)
 
     # -------------------------------------
     # Vibration mode to check
