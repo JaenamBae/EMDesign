@@ -227,14 +227,10 @@ class StarOfSlots:
 
         # 분포계수를 구함
         k_w = phase / phase_count
-        angle = np.angle(k_w[0], deg=True)
+        #angle = round(np.angle(k_w[0], deg=True))
         #print('Angle for Distribute Factor K_wd{}: {}'.format(int(pp/self._pp), angle))
         return k_w[0].real
 
-        #if np.isclose(0, angle, rtol=1e-5, atol=1e-8):
-        #    return np.abs(k_w[0])
-        #else:
-        #    return -np.abs(k_w[0])
 
     def calculateShortPitchFactor(self, yq: int, pp: int = 0) -> Union[np.array, None]:
         if not self.feasible:
@@ -259,8 +255,7 @@ class StarOfSlots:
         n_useless = int(pp / self._Q)
         if n_useless > 0: n_useless = n_useless - 0.5
         k_wc = (n_harmonic - n_useless) / pp * self._pp
-        return k_wc
-
+        return 1 #k_wc
 
     def getPatterns(self):
         if not self.feasible:

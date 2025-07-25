@@ -35,13 +35,13 @@ class SPMSM:
         M_1n = np.sin(k1n) / k1n
         M_2n = np.sin(k2n) / k2n
 
-        H_crn = B_r / (mu_0 * mu_r2) * alpha_p * (M_1n + M_2n)
-        H_ctn = B_r / (mu_0 * mu_r2) * alpha_p * (M_1n - M_2n)
+        #H_crn = B_r / (mu_0 * mu_r2) * alpha_p * (M_1n + M_2n)
+        #H_ctn = B_r / (mu_0 * mu_r2) * alpha_p * (M_1n - M_2n)
 
         # Radial 착자 가정
         kk = n * np.pi * alpha_p / 2
-        #H_crn = 2 * B_r / (mu_0 * mu_r2) * alpha_p * np.sin(kk) / kk
-        #H_ctn = 0
+        H_crn = 2 * B_r / (mu_0 * mu_r2) * alpha_p * np.sin(kk) / kk
+        H_ctn = 0
 
         # -------------------------------
         alpha = n * p - 1

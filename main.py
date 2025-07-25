@@ -51,7 +51,7 @@ def B_g_FFT_myMachine(n_harmonics:int = 20):
         B_rn, B_tn = spmsm.calculate_harmonic(r, n)
         Bg_FFT[n] = B_rn
 
-    print(Bg_FFT)
+    #print(Bg_FFT)
     return Bg_FFT
 
 def main():
@@ -86,6 +86,8 @@ def main():
     # -----------------------------------
     # Star of Slots 출력
     ss.plotStarOfSlots()
+
+    print('Offset Angle: {}'.format(ss.calculateOffsetAngle()))
 
     # -----------------------------------
     # 권선계수 출력 - 서브하모닉 고려됨
