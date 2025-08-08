@@ -3,6 +3,8 @@ import math
 import cmath
 from typing import Union
 import numpy as np
+from scipy.interpolate import RegularGridInterpolator
+import pandas as pd
 import string
 import matplotlib.pyplot as plt
 from matplotlib.patches import Wedge, Patch
@@ -37,7 +39,7 @@ class StarOfSlots:
         self._zero_mutual = False
         self._single_layer = False
         self._k_wd1 = None
-
+        self._interpolator = None
 
         self._t = math.gcd(pp, N_slots)
         mt = self._m * self._t
@@ -70,6 +72,55 @@ class StarOfSlots:
             # --------------------------------------
             # 기본파 분포계수 구해두기
             self._k_wd1 = self.calculateDistributeFactor()
+
+            # --------------------------------------
+            file_path = "CouplingCoefficients.csv"
+
+            # 데이터프레임으로 읽기
+            df = pd.read_csv(file_path)
+
+            # 유일한 값 추출
+            harmonic = sorted(df["Harmonic_order"].unique())
+            tau_so = sorted(df["tau_so"].unique())
+            ratio = sorted(df["SlotPitchRatio"].unique())
+
+            # 빈 배열 생성 (3차원)
+            flux_array = np.empty((len(harmonic), len(tau_so), len(ratio)))
+
+            # 값 채우기
+            for i, h in enumerate(harmonic):
+                for j, w in enumerate(tau_so):
+                    for k, r in enumerate(ratio):
+                        value = df[(df["Harmonic_order"] == h) &
+                                   (df["tau_so"] == w) &
+                                   (df["SlotPitchRatio"] == r)]["FluxLinkage(Winding)"].values
+                        flux_array[i, j, k] = value[0] if len(value) > 0 else np.nan
+
+            k_wc = np.zeros_like(flux_array)
+
+            # for문으로 계산
+            for i, h in enumerate(harmonic):
+                for j in range(len(tau_so)):
+                    for k, tau_s in enumerate(ratio):
+                        base_value = flux_array[0, j, k]
+                        current_value = flux_array[i, j, k]
+                        k_wp1 = np.sin(np.pi * tau_s / 2)
+                        k_wpn = np.sin(np.pi * tau_s * h / 2)
+                        if base_value != 0:
+                            coupling_coef = (current_value / base_value) * (k_wp1 / k_wpn) * h
+                            if coupling_coef > 1: coupling_coef = 1
+                            if coupling_coef < - 1: coupling_coef = -1
+                            k_wc[i, j, k] = coupling_coef
+                        else:
+                            k_wc[i, j, k] = 0  # 또는 np.nan, 적절히 처리
+
+            # 보간기 생성
+            self._interpolator = RegularGridInterpolator(
+                (harmonic, tau_so, ratio),
+                k_wc,
+                bounds_error=False,  # 범위를 벗어나면 fill_value를 사용
+                fill_value=0  # 외삽 허용 (또는 0, np.nan 등 원하는 값)
+            )
 
     @property
     def nPolePairs(self) -> int:
@@ -249,13 +300,31 @@ class StarOfSlots:
     def calculateCouplingFactor(self, pp: int = 0):
         if not self.feasible:
             return None
-        if pp == 0: pp = self._pp
 
-        n_harmonic = pp / self._pp
-        n_useless = int(pp / self._Q)
-        if n_useless > 0: n_useless = n_useless - 0.5
-        k_wc = (n_harmonic - n_useless) / pp * self._pp
-        return 1 #k_wc
+        harmonic = int(pp / self._pp)
+        '''
+        k_wc = np.array([1,
+                         0.391309716,
+                         0.442607219,
+                         -0.521886765,
+                         0.245212974,
+                         -0.051869046,
+                         -0.289116922
+                         ])
+        if harmonic >= len(k_wc):
+            return 1
+        else:
+            return k_wc[harmonic-1]
+        '''
+        if 2 * self._pp / self._Q * harmonic > 1:
+            slot_pitch_ratio = 2 * self._pp / self._Q
+            tau_so = 0.025
+            point = [harmonic, tau_so, slot_pitch_ratio]
+            k_wc = self._interpolator(point)
+            return k_wc
+        else:
+            return 1
+
 
     def getPatterns(self):
         if not self.feasible:
