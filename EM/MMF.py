@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from typing import Union
 import matplotlib.pyplot as plt
 from .StarOfSlots import StarOfSlots
@@ -154,7 +155,8 @@ class MMF:
         emf_harmonic = np.zeros_like(Bg_FFT)
         pp = self._ss.nPolePairs
         for n, Bgn_FFT in enumerate(Bg_FFT):
-            if n == 0: continue
+            if n % 2 == 0: continue
+            if n > 13: break
 
             # 전기각 고려한 하모닉 차수
             pp_harmonic = int(n * pp)
@@ -163,16 +165,11 @@ class MMF:
             # 분포계수 구하기
             k_wd = self._ss.calculateDistributeFactor(pp_harmonic)
 
-            # 단절계수 구하기
-            k_wp = self._ss.calculateShortPitchFactor(self._yq, pp_harmonic)
-
-            # 결합계수 구하기
-            k_wc = self._ss.calculateCouplingFactor(pp_harmonic)
+            # 결합계수(단절계수 포함) 구하기
+            k_wc = self._ss.calculateCouplingFactor(1, pp_harmonic, 0.1)
 
             # 쇄교자속에 대한 고조파의 영향도
-            emf_harmonic[n] = k_wd * k_wp * k_wc * Bgn_FFT
-
-            #print('Winding factor for harmonic {}: K_wd: {}, K_wp: {}'.format(n, k_wd, k_wp))
+            emf_harmonic[n] = k_wd * k_wc * Bgn_FFT
 
         return emf_harmonic
 
@@ -379,10 +376,17 @@ class MMF:
             emf_n = cn * np.sin(np.radians(n * theta))
             emf = emf + emf_n
 
+        # 두 배열을 세로로 합친 뒤 전치
+        data = np.column_stack((theta, emf*2*np.pi*60*0.1*.1*40))
+
+        # CSV 저장
+        np.savetxt("theta_emf.csv", data, delimiter=",", header="theta,emf", comments="")
+
         # Plot
         if with_waveform:
+            sizer = 2*np.pi*60*0.1*.1*40
             plt.figure(figsize=(12, 6))
-            plt.plot(theta, emf, color="blue", linewidth=3)
+            plt.plot(theta, emf*sizer, color="blue", linewidth=3)
             plt.title("back-EMF Waveform")
             plt.xlabel("Electric Angle (degrees)")
             plt.ylabel("back EMF [pu]")

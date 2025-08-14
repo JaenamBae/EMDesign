@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 def B_g_FFT_myMachine(n_harmonics:int = 20):
-    p = 7
+    p = 4
 
     # 형상 치수
     R_i = 10.00 * 1e-3
@@ -57,9 +57,9 @@ def B_g_FFT_myMachine(n_harmonics:int = 20):
 def main():
     # -------------------------------
     # 모터 사양
-    p = 7               # 극쌍수
+    p = 4               # 극쌍수
     Q = 12              # 슬롯수
-    beta = 30           # 전류위상각 [degE]
+    beta = 15           # 전류위상각 [degE]
 
     print('-----------------------------------------------------')
     print('Compute on Number of poles: {}, Number of Slots: {}'.format(p*2, Q))
@@ -86,6 +86,8 @@ def main():
     # -----------------------------------
     # Star of Slots 출력
     ss.plotStarOfSlots()
+
+    #exit()
 
     print('Offset Angle: {}'.format(ss.calculateOffsetAngle()))
 
@@ -116,33 +118,47 @@ def main():
     # alpha = 0.7 from FEA. (bn, odd 파형(sin파형)에 대한 계수임)
     B_g_FFT1 = np.array(
         [0,
-         0.941801512,
+         0.7562,
          0.00E+00,
-         0.215816784,
+         0.1578,
          0.00E+00,
-         0.077892667,
+         0.0788,
          0.00E+00,
-         0.032732218,
+         0.0490,
          0.00E+00,
-         0.01495327,
+         0.0137,
          0.00E+00,
-         0.007192753,
+         0.0111,
          0.00E+00,
-         0.003582226,
+         0.0122,
          0.00E+00,
-         0.001830871,
-         0.00E+00,
-         0.000953092,
-         0.00E+00,
-         0.000504592
+         0.0071
          ]
     )
+    B_g_FFT_8_12 = np.array(
+        [0,
+         1.2527,
+         0,
+         -0.4078,
+         0,
+         0.2336,
+         0,
+         -0.1571,
+         0,
+         0.1141,
+         0,
+         -0.0869,
+         0,
+         0.0683,
+         0,
+         -0.0550
+        ]) * 1.2139/1.2527
 
     # 해석모델로부터 공극자속밀도를 구함, (an, even 파형(cos파형)에 대한 계수임)
     B_g_FFT3 = B_g_FFT_myMachine(40)
     #print(B_g_FFT3)
 
-    B_g_FFT = B_g_FFT3
+    B_g_FFT = B_g_FFT_8_12
 
     print('THD of the backEMF:', mmf.THDforBackEMF(B_g_FFT))
     mmf.plotBackEMF(B_g_FFT, True,True, True)

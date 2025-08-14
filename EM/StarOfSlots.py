@@ -8,6 +8,9 @@ import pandas as pd
 import string
 import matplotlib.pyplot as plt
 from matplotlib.patches import Wedge, Patch
+from pathlib import Path
+#from EM.flux_linkage_predictor import predict_flux_linkage
+
 
 def create_mapping(max_value):
     letters = string.ascii_uppercase  # A-Z
@@ -74,6 +77,7 @@ class StarOfSlots:
             self._k_wd1 = self.calculateDistributeFactor()
 
             # --------------------------------------
+            #'''
             file_path = "CouplingCoefficients.csv"
 
             # 데이터프레임으로 읽기
@@ -107,9 +111,9 @@ class StarOfSlots:
                         k_wp1 = np.sin(np.pi * tau_s / 2)
                         k_wpn = np.sin(np.pi * tau_s * h / 2)
                         if base_value != 0:
-                            coupling_coef = (current_value / base_value) * (k_wp1 / k_wpn) * h
-                            if coupling_coef > 1: coupling_coef = 1
-                            if coupling_coef < - 1: coupling_coef = -1
+                            coupling_coef = (current_value / base_value) * h * k_wp1
+                            #if coupling_coef > 1: coupling_coef = 1
+                            #if coupling_coef < - 1: coupling_coef = -1
                             k_wc[i, j, k] = coupling_coef
                         else:
                             k_wc[i, j, k] = 0  # 또는 np.nan, 적절히 처리
@@ -118,9 +122,11 @@ class StarOfSlots:
             self._interpolator = RegularGridInterpolator(
                 (harmonic, tau_so, ratio),
                 k_wc,
-                bounds_error=False,  # 범위를 벗어나면 fill_value를 사용
-                fill_value=0  # 외삽 허용 (또는 0, np.nan 등 원하는 값)
+                method='linear',
+                bounds_error=False,
+                fill_value=None
             )
+            #'''
 
     @property
     def nPolePairs(self) -> int:
@@ -252,7 +258,7 @@ class StarOfSlots:
         offset_angle = np.angle(phase_a, deg=True)
         return offset_angle / pp
 
-    def calculateDistributeFactor(self, pp: int = 0) -> Union[np.array, None]:
+    def calculateDistributeFactor(self, pp: int = 0) -> Union[float, None]:
         if not self.feasible:
             #print('Not allowed pole({})-slot({}) combination'.format(self.P, self.Q))
             return None
@@ -283,7 +289,7 @@ class StarOfSlots:
         return k_w[0].real
 
 
-    def calculateShortPitchFactor(self, yq: int, pp: int = 0) -> Union[np.array, None]:
+    def calculateShortPitchFactor(self, yq: int, pp: int = 0) -> Union[float, None]:
         if not self.feasible:
             #print('Not allowed pole({})-slot({}) combination'.format(self.P, self.Q))
             return None
@@ -297,34 +303,30 @@ class StarOfSlots:
         k_wp = np.sin(coil_pitch / 2)
         return k_wp
 
-    def calculateCouplingFactor(self, pp: int = 0):
+    def calculateCouplingFactor(self, yq: int, pp: int = 0, tau_so: float = 0):
         if not self.feasible:
             return None
 
         harmonic = int(pp / self._pp)
-        '''
-        k_wc = np.array([1,
-                         0.391309716,
-                         0.442607219,
-                         -0.521886765,
-                         0.245212974,
-                         -0.051869046,
-                         -0.289116922
-                         ])
-        if harmonic >= len(k_wc):
-            return 1
-        else:
-            return k_wc[harmonic-1]
-        '''
+        if harmonic % 2 == 0:
+            return 0
+
+        module_dir = Path(__file__).parent
+
+        #model_path = module_dir / 'best_model~.pth'
+        #scaler_path = module_dir / 'scaler~.pkl'
+
+        if tau_so == 0: tau_so = 0.1
         if 2 * self._pp / self._Q * harmonic > 1:
             slot_pitch_ratio = 2 * self._pp / self._Q
-            tau_so = 0.025
+            k_wp1 = np.sin(np.pi * slot_pitch_ratio / 2)
+            #result = predict_flux_linkage(slot_pitch_ratio, tau_so, model_path, scaler_path, return_format='order_indexed')
+            #k_wc1 = result[harmonic]/result[1] * k_wp1
             point = [harmonic, tau_so, slot_pitch_ratio]
-            k_wc = self._interpolator(point)
-            return k_wc
+            k_wc2 = self._interpolator(point)
+            return k_wc2
         else:
-            return 1
-
+            return self.calculateShortPitchFactor(yq, pp)
 
     def getPatterns(self):
         if not self.feasible:
