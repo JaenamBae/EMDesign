@@ -7,9 +7,8 @@ from scipy.interpolate import RegularGridInterpolator
 import pandas as pd
 import string
 import matplotlib.pyplot as plt
-from matplotlib.patches import Wedge, Patch
-from pathlib import Path
-#from EM.flux_linkage_predictor import predict_flux_linkage
+from matplotlib.patches import Wedge
+from EM.CouplingCoefficientInterpolator import CouplingCoefficientInterpolator
 
 
 def create_mapping(max_value):
@@ -30,7 +29,7 @@ def create_mapping(max_value):
     return mapping
 
 class StarOfSlots:
-    def __init__(self, pp: int, N_slots: int, N_phases: int = 3) -> None:
+    def __init__(self, pp: int, N_slots: int, N_phases: int = 3, file_path = None) -> None:
         self._pp = pp
         self._Q = N_slots
         self._m = N_phases
@@ -77,8 +76,10 @@ class StarOfSlots:
             self._k_wd1 = self.calculateDistributeFactor()
 
             # --------------------------------------
-            #'''
+            '''
             file_path = "CouplingCoefficients.csv"
+            #file_path = "FluxLinkage_SPM.csv"
+
 
             # 데이터프레임으로 읽기
             df = pd.read_csv(file_path)
@@ -126,7 +127,10 @@ class StarOfSlots:
                 bounds_error=False,
                 fill_value=None
             )
-            #'''
+            '''
+            if file_path is not None:
+                self._interpolator = CouplingCoefficientInterpolator(file_path)
+
 
     @property
     def nPolePairs(self) -> int:
@@ -307,23 +311,18 @@ class StarOfSlots:
         if not self.feasible:
             return None
 
+        if self._interpolator is None:
+            return self.calculateShortPitchFactor(yq, pp)
+
         harmonic = int(pp / self._pp)
         if harmonic % 2 == 0:
             return 0
-
-        module_dir = Path(__file__).parent
-
-        #model_path = module_dir / 'best_model~.pth'
-        #scaler_path = module_dir / 'scaler~.pkl'
 
         if tau_so == 0: tau_so = 0.1
         if 2 * self._pp / self._Q * harmonic > 1:
             slot_pitch_ratio = 2 * self._pp / self._Q
             k_wp1 = np.sin(np.pi * slot_pitch_ratio / 2)
-            #result = predict_flux_linkage(slot_pitch_ratio, tau_so, model_path, scaler_path, return_format='order_indexed')
-            #k_wc1 = result[harmonic]/result[1] * k_wp1
-            point = [harmonic, tau_so, slot_pitch_ratio]
-            k_wc2 = self._interpolator(point)
+            k_wc2 = self._interpolator.interpolate(harmonic, tau_so, slot_pitch_ratio) * k_wp1
             return k_wc2
         else:
             return self.calculateShortPitchFactor(yq, pp)

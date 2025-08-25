@@ -2,8 +2,6 @@ from EM import SPMSM
 from EM import StarOfSlots
 from EM import MMF
 import numpy as np
-import matplotlib.pyplot as plt
-
 
 def B_g_FFT_myMachine(n_harmonics:int = 20):
     p = 4
@@ -14,7 +12,7 @@ def B_g_FFT_myMachine(n_harmonics:int = 20):
     R_m = 13.05 * 1e-3   # 영구자석 외경
     R_s = 13.55 * 1e-3   # 고정자 보어 내경
     R_so = 15.0 * 1e-3
-    alpha_p = 1.0
+    alpha_p = 0.8
 
     g = R_s - R_m
     r = R_s - g*0.05
@@ -45,7 +43,7 @@ def B_g_FFT_myMachine(n_harmonics:int = 20):
     # -----------------------------------
     # 공극자속밀도 파형 계산
     spmsm = SPMSM(info=info)
-    spmsm.plotBg(n_harmonics)
+    #spmsm.plotBg(n_harmonics)
     Bg_FFT = np.zeros(n_harmonics)
     for n in range(n_harmonics):
         B_rn, B_tn = spmsm.calculate_harmonic(r, n)
@@ -67,7 +65,7 @@ def main():
 
     # -----------------------------------
     # Star of Slots 생성
-    ss = StarOfSlots(p, Q)
+    ss = StarOfSlots(p, Q, 3,'FluxLinkage_SPM.csv')
     yq = ss.suggestYq
 
     if not ss.feasible:
@@ -115,26 +113,6 @@ def main():
 
     # -----------------------------------
     # EMF 출력
-    # alpha = 0.7 from FEA. (bn, odd 파형(sin파형)에 대한 계수임)
-    B_g_FFT1 = np.array(
-        [0,
-         0.7562,
-         0.00E+00,
-         0.1578,
-         0.00E+00,
-         0.0788,
-         0.00E+00,
-         0.0490,
-         0.00E+00,
-         0.0137,
-         0.00E+00,
-         0.0111,
-         0.00E+00,
-         0.0122,
-         0.00E+00,
-         0.0071
-         ]
-    )
     B_g_FFT_8_12 = np.array(
         [0,
          1.2527,
@@ -152,16 +130,33 @@ def main():
          0.0683,
          0,
          -0.0550
-        ]) * 1.2139/1.2527
+        ])# * 1.2139/1.2527
+
+    B_g_FFT_8_9 = np.array(
+        [0,
+         1.1915,
+         0,
+         -0.2398,
+         0,
+         -0.0,
+         0,
+         0.0926,
+         0,
+         -0.1090,
+         0,
+         0.0832,
+         0,
+         -0.0405
+        ])
 
     # 해석모델로부터 공극자속밀도를 구함, (an, even 파형(cos파형)에 대한 계수임)
-    B_g_FFT3 = B_g_FFT_myMachine(40)
+    #B_g_FFT3 = B_g_FFT_myMachine(40)
     #print(B_g_FFT3)
 
     B_g_FFT = B_g_FFT_8_12
-
-    print('THD of the backEMF:', mmf.THDforBackEMF(B_g_FFT))
-    mmf.plotBackEMF(B_g_FFT, True,True, True)
+    tau_so = 0.1
+    print('THD of the backEMF:', mmf.THDforBackEMF(B_g_FFT, tau_so))
+    mmf.plotBackEMF(B_g_FFT, tau_so, True,True, True)
 
     # -------------------------------------
     # Vibration mode to check

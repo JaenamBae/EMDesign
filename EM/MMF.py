@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from typing import Union
+from typing import Union, Any
 import matplotlib.pyplot as plt
 from .StarOfSlots import StarOfSlots
 
@@ -56,59 +56,15 @@ def pulsewave_fourier_coefficients(a, w, period=360, n_terms=100):
 
     return coefficients
 
-def trapezoidal_fourier_coefficients(w, num_terms=10):
-    """
-    사다리꼴파형의 푸리에 계수 계산 (주기 2*pi).
-
-    Parameters:
-        w (float): 상단 평평한 너비 (단위: radians, w < pi)
-        num_terms (int): 계산할 푸리에 계수의 개수
-
-    Returns:
-        b_n (np.ndarray): 푸리에 계수 배열 (n = 1, 2, ..., num_terms)
-    """
-    b_n = np.zeros(num_terms)
-    slope1 = 1 / (np.pi / 2 - w / 2)  # 구간 1의 기울기
-    slope3 = -1 / (np.pi / 2 - w / 2)  # 구간 3의 기울기
-
-    harmonic_order = range(1, num_terms + 1)
-    for n in harmonic_order:
-        # 구간 1: 선형 증가
-        term1 = (1 / np.pi) * slope1 * (
-                (-np.cos(n * (np.pi / 2 - w / 2)) + np.cos(n * (w / 2 - np.pi / 2))) / n
-                + (np.sin(n * (np.pi / 2 - w / 2)) - np.sin(n * (w / 2 - np.pi / 2))) / n ** 2
-        )
-
-        # 구간 2: 상수
-        term2 = (1 / np.pi) * (
-                (-np.cos(n * (np.pi / 2 + w / 2)) + np.cos(n * (np.pi / 2 - w / 2))) / n / slope1
-        )
-
-        # 구간 3: 선형 감소
-        term3 = (1 / np.pi) * slope3 * (
-                (-np.cos(n * (3 * np.pi / 2 - w / 2)) + np.cos(n * (np.pi / 2 + w / 2))) / n
-                + (np.sin(n * (3 * np.pi / 2 - w / 2)) - np.sin(n * (np.pi / 2 + w / 2))) / n ** 2
-        )
-
-        # 구간 4: 상수
-        term4 = (1 / np.pi) * (
-                (np.cos(n * (3 * np.pi / 2 + w / 2)) - np.cos(n * (3 * np.pi / 2 - w / 2))) / n / slope3
-        )
-
-        # 합산
-        b_n[n - 1] = term1 + term2 + term3 + term4
-
-    return b_n, harmonic_order
-
 class MMF:
-    def __init__(self, ss: StarOfSlots, current: np.array, yq: int=0) -> None:
+    def __init__(self, ss: StarOfSlots, current: np.ndarray, yq: int=0) -> None:
         self._ss = ss
         self._current = current
         self._yq = yq
         if yq == 0:
             self._yq = ss.suggestYq
 
-    def harmonicComponents(self, n_terms: int = 100) -> tuple[np.array, np.array]:
+    def harmonicComponents(self, n_terms: int = 100) -> tuple[np.ndarray, np.ndarray]:
         nSlots = self._ss.nSlots
         nPhases = self._ss.nPhases
         current = self._current
@@ -148,7 +104,7 @@ class MMF:
 
         return sum_coefficient, phase_type
 
-    def harmonicsForBackEMF(self, Bg_FFT: np.array) -> Union[np.array, None]:
+    def harmonicsForBackEMF(self, Bg_FFT: np.ndarray, tau_so: float) -> Union[np.ndarray, None]:
         if not self._ss.feasible:
             return None
 
@@ -166,19 +122,19 @@ class MMF:
             k_wd = self._ss.calculateDistributeFactor(pp_harmonic)
 
             # 결합계수(단절계수 포함) 구하기
-            k_wc = self._ss.calculateCouplingFactor(1, pp_harmonic, 0.1)
+            k_wc = self._ss.calculateCouplingFactor(1, pp_harmonic, tau_so)
 
             # 쇄교자속에 대한 고조파의 영향도
             emf_harmonic[n] = k_wd * k_wc * Bgn_FFT
 
         return emf_harmonic
 
-    def THDforBackEMF(self, Bg_FFT: np.array) -> Union[float, None]:
+    def THDforBackEMF(self, Bg_FFT: np.ndarray, tau_so: float) -> Union[float, None]:
         if not self._ss.feasible:
             return None
 
         # 홀수 고조파에 대한 계수만 계산된다
-        harmonics_emf = self.harmonicsForBackEMF(Bg_FFT)
+        harmonics_emf = self.harmonicsForBackEMF(Bg_FFT, tau_so)
         thd_emf = 0
         emf_1 = 0
         for n, emf in enumerate(harmonics_emf):
@@ -190,8 +146,8 @@ class MMF:
         thd = np.abs(np.sqrt(thd_emf) / emf_1)
         return thd
 
-    def vibrationModeBySubharmonics(self, check_mode: np.array=np.array([1,2,3,4]),
-                                    threshold: float=0.1) -> tuple[np.array, bool]:
+    def vibrationModeBySubharmonics(self, check_mode: np.ndarray=np.array([1,2,3,4]),
+                                    threshold: float=0.1) -> tuple[np.ndarray, bool]:
         """
         Check vibration mode by subharmonics.
 
@@ -221,10 +177,10 @@ class MMF:
 
         return zip(check_mode, result)
 
-    def vibrationModeByHarmonics(self, Bg_FFT: np.array,
-                                 with_mmf_harmonics: np.array, with_pole_harmonics: np.array,
-                                 check_mode: np.array = np.array([1, 2, 3, 4]),
-                                 threshold: float = 0.1) -> tuple[np.array, bool]:
+    def vibrationModeByHarmonics(self, Bg_FFT: np.ndarray,
+                                 with_mmf_harmonics: np.ndarray, with_pole_harmonics: np.ndarray,
+                                 check_mode: np.ndarray = np.array([1, 2, 3, 4]),
+                                 threshold: float = 0.1):
         current = self._current
         yq = self._yq
         pp = self._ss.nPolePairs
@@ -354,13 +310,13 @@ class MMF:
         plt.grid(True)
         plt.show()
 
-    def plotBackEMF(self, Bg_FFT: np.array, even:bool, with_waveform=True, with_fft=True) -> None:
+    def plotBackEMF(self, Bg_FFT: np.ndarray, tau_so: float, even:bool, with_waveform=True, with_fft=True) -> None:
         # even 함수(cos 기반 함수)로 복원할 것임
         n_sample = 3600  # 샘플링 데이터 수
         theta = 360 * np.arange(n_sample) / n_sample
         emf = np.zeros(n_sample)
 
-        coefficients = self.harmonicsForBackEMF(Bg_FFT)
+        coefficients = self.harmonicsForBackEMF(Bg_FFT, tau_so)
         new_coefficients = np.zeros_like(coefficients)
         if even:  # 계수가 an인 경우 (코싸인 파형에 대한 계수인 경우)
             new_coefficients = coefficients
@@ -384,7 +340,7 @@ class MMF:
 
         # Plot
         if with_waveform:
-            sizer = 2*np.pi*60*0.1*.1*40
+            sizer = 2*np.pi*60*0.1*.1*30
             plt.figure(figsize=(12, 6))
             plt.plot(theta, emf*sizer, color="blue", linewidth=3)
             plt.title("back-EMF Waveform")
