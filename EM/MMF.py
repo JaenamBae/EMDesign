@@ -104,7 +104,7 @@ class MMF:
 
         return sum_coefficient, phase_type
 
-    def harmonicsForBackEMF(self, Bg_FFT: np.ndarray, tau_so: float) -> Union[np.ndarray, None]:
+    def harmonicsForBackEMF(self, Bg_FFT: np.ndarray, tau_so: float, tau_g: float) -> Union[np.ndarray, None]:
         if not self._ss.feasible:
             return None
 
@@ -122,19 +122,19 @@ class MMF:
             k_wd = self._ss.calculateDistributeFactor(pp_harmonic)
 
             # 결합계수(단절계수 포함) 구하기
-            k_wc = self._ss.calculateCouplingFactor(1, pp_harmonic, tau_so)
+            k_wc = self._ss.calculateCouplingFactor(1, pp_harmonic, tau_so, tau_g)
 
             # 쇄교자속에 대한 고조파의 영향도
             emf_harmonic[n] = k_wd * k_wc * Bgn_FFT
 
         return emf_harmonic
 
-    def THDforBackEMF(self, Bg_FFT: np.ndarray, tau_so: float) -> Union[float, None]:
+    def THDforBackEMF(self, Bg_FFT: np.ndarray, tau_so: float, tau_g: float) -> Union[float, None]:
         if not self._ss.feasible:
             return None
 
         # 홀수 고조파에 대한 계수만 계산된다
-        harmonics_emf = self.harmonicsForBackEMF(Bg_FFT, tau_so)
+        harmonics_emf = self.harmonicsForBackEMF(Bg_FFT, tau_so, tau_g)
         thd_emf = 0
         emf_1 = 0
         for n, emf in enumerate(harmonics_emf):
@@ -310,13 +310,13 @@ class MMF:
         plt.grid(True)
         plt.show()
 
-    def plotBackEMF(self, Bg_FFT: np.ndarray, tau_so: float, even:bool, with_waveform=True, with_fft=True) -> None:
+    def plotBackEMF(self, Bg_FFT: np.ndarray, tau_so: float, tau_g: float, even:bool, with_waveform=True, with_fft=True) -> None:
         # even 함수(cos 기반 함수)로 복원할 것임
         n_sample = 3600  # 샘플링 데이터 수
         theta = 360 * np.arange(n_sample) / n_sample
         emf = np.zeros(n_sample)
 
-        coefficients = self.harmonicsForBackEMF(Bg_FFT, tau_so)
+        coefficients = self.harmonicsForBackEMF(Bg_FFT, tau_so, tau_g)
         new_coefficients = np.zeros_like(coefficients)
         if even:  # 계수가 an인 경우 (코싸인 파형에 대한 계수인 경우)
             new_coefficients = coefficients

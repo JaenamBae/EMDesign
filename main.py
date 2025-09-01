@@ -56,8 +56,8 @@ def main():
     # -------------------------------
     # 모터 사양
     p = 4               # 극쌍수
-    Q = 12              # 슬롯수
-    beta = 15           # 전류위상각 [degE]
+    Q = 9              # 슬롯수
+    beta = 0           # 전류위상각 [degE]
 
     print('-----------------------------------------------------')
     print('Compute on Number of poles: {}, Number of Slots: {}'.format(p*2, Q))
@@ -65,7 +65,7 @@ def main():
 
     # -----------------------------------
     # Star of Slots 생성
-    ss = StarOfSlots(p, Q, 3,'FluxLinkage_SPM.csv')
+    ss = StarOfSlots(p, Q, 3,'FluxLinkage_IPMSM.csv')
     yq = ss.suggestYq
 
     if not ss.feasible:
@@ -149,14 +149,32 @@ def main():
          -0.0405
         ])
 
+    B_g_FFT_8_9_ipmsm = np.array(
+        [0,
+         1.0289,
+         0,
+         -0.2153,
+         0,
+         -0.0072,
+         0,
+         0.0774,
+         0,
+         -0.0967,
+         0,
+         0.0779,
+         0,
+         -0.0426
+         ])
+
     # 해석모델로부터 공극자속밀도를 구함, (an, even 파형(cos파형)에 대한 계수임)
     #B_g_FFT3 = B_g_FFT_myMachine(40)
     #print(B_g_FFT3)
 
-    B_g_FFT = B_g_FFT_8_12
-    tau_so = 0.1
-    print('THD of the backEMF:', mmf.THDforBackEMF(B_g_FFT, tau_so))
-    mmf.plotBackEMF(B_g_FFT, tau_so, True,True, True)
+    B_g_FFT = B_g_FFT_8_9_ipmsm
+    tau_so = 0.2
+    tau_g = 0.0127
+    print('THD of the backEMF:', mmf.THDforBackEMF(B_g_FFT, tau_so, tau_g))
+    mmf.plotBackEMF(B_g_FFT, tau_so, tau_g,True,True, True)
 
     # -------------------------------------
     # Vibration mode to check

@@ -3,12 +3,10 @@ import math
 import cmath
 from typing import Union
 import numpy as np
-from scipy.interpolate import RegularGridInterpolator
-import pandas as pd
 import string
 import matplotlib.pyplot as plt
 from matplotlib.patches import Wedge
-from EM.CouplingCoefficientInterpolator import CouplingCoefficientInterpolator
+from EM.CouplingCoefficientInterpolator import CouplingCoefficientInterpolator2
 
 
 def create_mapping(max_value):
@@ -76,61 +74,8 @@ class StarOfSlots:
             self._k_wd1 = self.calculateDistributeFactor()
 
             # --------------------------------------
-            '''
-            file_path = "CouplingCoefficients.csv"
-            #file_path = "FluxLinkage_SPM.csv"
-
-
-            # 데이터프레임으로 읽기
-            df = pd.read_csv(file_path)
-
-            # 유일한 값 추출
-            harmonic = sorted(df["Harmonic_order"].unique())
-            tau_so = sorted(df["tau_so"].unique())
-            ratio = sorted(df["SlotPitchRatio"].unique())
-
-            # 빈 배열 생성 (3차원)
-            flux_array = np.empty((len(harmonic), len(tau_so), len(ratio)))
-
-            # 값 채우기
-            for i, h in enumerate(harmonic):
-                for j, w in enumerate(tau_so):
-                    for k, r in enumerate(ratio):
-                        value = df[(df["Harmonic_order"] == h) &
-                                   (df["tau_so"] == w) &
-                                   (df["SlotPitchRatio"] == r)]["FluxLinkage(Winding)"].values
-                        flux_array[i, j, k] = value[0] if len(value) > 0 else np.nan
-
-            k_wc = np.zeros_like(flux_array)
-
-            # for문으로 계산
-            for i, h in enumerate(harmonic):
-                for j in range(len(tau_so)):
-                    for k, tau_s in enumerate(ratio):
-                        base_value = flux_array[0, j, k]
-                        current_value = flux_array[i, j, k]
-                        k_wp1 = np.sin(np.pi * tau_s / 2)
-                        k_wpn = np.sin(np.pi * tau_s * h / 2)
-                        if base_value != 0:
-                            coupling_coef = (current_value / base_value) * h * k_wp1
-                            #if coupling_coef > 1: coupling_coef = 1
-                            #if coupling_coef < - 1: coupling_coef = -1
-                            k_wc[i, j, k] = coupling_coef
-                        else:
-                            k_wc[i, j, k] = 0  # 또는 np.nan, 적절히 처리
-
-            # 보간기 생성
-            self._interpolator = RegularGridInterpolator(
-                (harmonic, tau_so, ratio),
-                k_wc,
-                method='linear',
-                bounds_error=False,
-                fill_value=None
-            )
-            '''
             if file_path is not None:
-                self._interpolator = CouplingCoefficientInterpolator(file_path)
-
+                self._interpolator = CouplingCoefficientInterpolator2(file_path)
 
     @property
     def nPolePairs(self) -> int:
@@ -176,7 +121,7 @@ class StarOfSlots:
     def suggestYq(self) -> int:
         return round(self._Q / (self._pp * 2) - 0.1)
 
-    def makeBasedPattern(self) -> Union[tuple[np.array, np.array], None]:
+    def makeBasedPattern(self) -> Union[tuple[np.ndarray, np.ndarray], None]:
         if not self._feasible:
             return None
 
@@ -307,7 +252,7 @@ class StarOfSlots:
         k_wp = np.sin(coil_pitch / 2)
         return k_wp
 
-    def calculateCouplingFactor(self, yq: int, pp: int = 0, tau_so: float = 0):
+    def calculateCouplingFactor(self, yq: int, pp: int = 0, tau_so: float = 0, tau_g: float = 0):
         if not self.feasible:
             return None
 
@@ -322,7 +267,7 @@ class StarOfSlots:
         if 2 * self._pp / self._Q * harmonic > 1:
             slot_pitch_ratio = 2 * self._pp / self._Q
             k_wp1 = np.sin(np.pi * slot_pitch_ratio / 2)
-            k_wc2 = self._interpolator.interpolate(harmonic, tau_so, slot_pitch_ratio) * k_wp1
+            k_wc2 = self._interpolator.interpolate(harmonic, tau_so, tau_g, slot_pitch_ratio) * k_wp1
             return k_wc2
         else:
             return self.calculateShortPitchFactor(yq, pp)
